@@ -18,7 +18,7 @@ use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
 
-use crate::{pomidorka::Pomidorka, project::Project, tag::Tag, task::Task};
+use crate::{pomidorka::Pomidorka, task::Task};
 
 mod duration_fmt;
 mod pomidorka;
@@ -247,11 +247,11 @@ fn get_editor() -> String {
   std::env::var("EDITOR").unwrap_or(std::env::var("VISUAL").unwrap_or("nvim".to_string()))
 }
 
-fn run_edit_and_get_result<T: serde::ser::Serialize>(
+fn run_edit_and_get_result<T: serde::ser::Serialize + serde::de::DeserializeOwned>(
   item: &T,
   tmp_file: &mut tempfile::NamedTempFile,
   editor: &str,
-) -> String {
+) -> T {
   let item_str = serde_json::to_string_pretty(item).unwrap();
   tmp_file.write_all(item_str.as_bytes()).unwrap();
 
@@ -264,7 +264,9 @@ fn run_edit_and_get_result<T: serde::ser::Serialize>(
   tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
   tmp_file.read_to_string(&mut buf).unwrap();
 
-  return buf;
+  debug!("edit result: {}", buf);
+
+  return serde_json::from_str(&buf).expect("can't decode item back, please try again");
 }
 
 fn edit(
@@ -291,8 +293,7 @@ fn edit(
       let all_tags = pomidorka.borrow().tags();
       let task_view = TaskView::from_task(&task, &all_tags);
 
-      let updated_task_string = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
-      let updated_task_view: TaskView = serde_json::from_str(&updated_task_string).unwrap();
+      let updated_task_view = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
       let updated_task = updated_task_view.to_task(&all_tags);
       viewer.log_task(&updated_task, true);
       pomidorka.borrow_mut().replace_task(updated_task).unwrap();
@@ -300,8 +301,7 @@ fn edit(
 
     EditDataType::Project => {
       let project = pomidorka.borrow().project_by_id(id).unwrap();
-      let updated_project_string = run_edit_and_get_result(&project, &mut tmp_file, &editor);
-      let updated_project: Project = serde_json::from_str(&updated_project_string).unwrap();
+      let updated_project = run_edit_and_get_result(&project, &mut tmp_file, &editor);
 
       println!("{}", "Updated project: ".bright_yellow());
       viewer.print_project(&updated_project);
@@ -313,8 +313,7 @@ fn edit(
 
     EditDataType::Tag => {
       let tag = pomidorka.borrow().tag_by_id(id).unwrap();
-      let updated_tag_string = run_edit_and_get_result(&tag, &mut tmp_file, &editor);
-      let updated_tag: Tag = serde_json::from_str(&updated_tag_string).unwrap();
+      let updated_tag = run_edit_and_get_result(&tag, &mut tmp_file, &editor);
 
       println!("{}", "Updated tag: ".bright_yellow());
       viewer.print_tag(&updated_tag);
