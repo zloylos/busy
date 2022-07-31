@@ -3,7 +3,7 @@ extern crate colored;
 extern crate serde;
 extern crate serde_json;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use chrono::{Datelike, Timelike};
 use viewer::Viewer;
@@ -27,16 +27,28 @@ fn main() {
       clap::Arg::new("tags").index(3).multiple_values(true),
     ]))
     .subcommand(clap::Command::new("stop"))
-    .subcommand(clap::Command::new("log").args(&[
-      clap::Arg::new("days").long("days").takes_value(true),
-      clap::Arg::new("full").long("full"),
-      clap::Arg::new("today").long("today"),
-    ]))
-    .subcommand(clap::Command::new("stat").args(&[
-      clap::Arg::new("days").long("days").takes_value(true),
-      clap::Arg::new("today").long("today"),
-      clap::Arg::new("with-tags").long("with-tags"),
-    ]))
+    .subcommand(
+      clap::Command::new("log").args(&[
+        clap::Arg::new("days").long("days").takes_value(true),
+        clap::Arg::new("full").long("full"),
+        clap::Arg::new("today").long("today"),
+        clap::Arg::new("project")
+          .long("project")
+          .multiple_values(true)
+          .takes_value(true),
+      ]),
+    )
+    .subcommand(
+      clap::Command::new("stat").args(&[
+        clap::Arg::new("days").long("days").takes_value(true),
+        clap::Arg::new("today").long("today"),
+        clap::Arg::new("with-tags").long("with-tags"),
+        clap::Arg::new("project")
+          .long("project")
+          .multiple_values(true)
+          .takes_value(true),
+      ]),
+    )
     .subcommand(clap::Command::new("projects"))
     .get_matches();
 
@@ -90,26 +102,53 @@ fn main() {
       let subcommand_matches = matches.subcommand_matches("log").unwrap();
       let show_full = subcommand_matches.is_present("full");
       let show_today_only = subcommand_matches.is_present("today");
+      let project_names = subcommand_matches
+        .values_of_t("project")
+        .ok()
+        .unwrap_or_default();
+      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
-      viewer.log_tasks_list(period, show_full);
+      viewer.log_tasks_list(period, project_ids, show_full);
     }
 
     Some("stat") => {
       let subcommand_matches = matches.subcommand_matches("stat").unwrap();
       let show_today_only = subcommand_matches.is_present("today");
       let with_tags = subcommand_matches.is_present("with-tags");
+      let project_names = subcommand_matches
+        .values_of_t("project")
+        .ok()
+        .unwrap_or_default();
+      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       println!("period: {}", period_arg.unwrap_or_default());
       let period = get_period(period_arg, show_today_only);
-      viewer.show_stat(period, with_tags);
+      viewer.show_stat(period, project_ids, with_tags);
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
     None => println!("subcommand not found"),
   };
+}
+
+fn projects_to_ids_set(
+  pomidorka: Rc<RefCell<Pomidorka>>,
+  project_names: Vec<String>,
+) -> Option<HashSet<u128>> {
+  let mut project_ids = HashSet::new();
+  for project_name in project_names.iter() {
+    let project = pomidorka.borrow().project_by_name(project_name);
+    if project.is_some() {
+      project_ids.insert(project.unwrap().id());
+    }
+  }
+  if project_ids.is_empty() {
+    return None;
+  }
+  return Some(project_ids);
 }
 
 fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Duration {

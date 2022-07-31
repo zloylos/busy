@@ -27,8 +27,13 @@ impl Viewer {
     }
   }
 
-  pub fn show_stat(&self, period: chrono::Duration, with_tags: bool) {
-    let by_dates = self.tasks_by_day(period);
+  pub fn show_stat(
+    &self,
+    period: chrono::Duration,
+    project_ids: Option<HashSet<u128>>,
+    with_tags: bool,
+  ) {
+    let by_dates = self.tasks_by_day(period, project_ids);
     if by_dates.is_empty() {
       println!("no tasks to show");
       return;
@@ -83,7 +88,11 @@ impl Viewer {
     }
   }
 
-  fn tasks_by_day(&self, period: chrono::Duration) -> Vec<Vec<Task>> {
+  fn tasks_by_day(
+    &self,
+    period: chrono::Duration,
+    maybe_project_ids: Option<HashSet<u128>>,
+  ) -> Vec<Vec<Task>> {
     let tasks = self.pomidorka.borrow().tasks(period);
     if tasks.is_empty() {
       return Vec::new();
@@ -93,7 +102,14 @@ impl Viewer {
 
     let mut by_dates: Vec<Vec<Task>> = Vec::new();
     let mut date = None;
+    let has_project_ids = maybe_project_ids.is_some();
+    let project_ids = maybe_project_ids.unwrap_or_default();
+
     for t in tasks {
+      if has_project_ids && !project_ids.contains(&t.project_id()) {
+        continue;
+      }
+
       let task_date = t.start_time().date();
       if date.is_none() || date.unwrap() != task_date {
         by_dates.push(Vec::new());
@@ -104,8 +120,13 @@ impl Viewer {
     return by_dates;
   }
 
-  pub fn log_tasks_list(&self, period: chrono::Duration, show_full: bool) {
-    let by_dates = self.tasks_by_day(period);
+  pub fn log_tasks_list(
+    &self,
+    period: chrono::Duration,
+    project_ids: Option<HashSet<u128>>,
+    show_full: bool,
+  ) {
+    let by_dates = self.tasks_by_day(period, project_ids);
     if by_dates.is_empty() {
       println!("no tasks to show");
       return;

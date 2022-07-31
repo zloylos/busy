@@ -102,17 +102,21 @@ impl Pomidorka {
     return project;
   }
 
-  fn upsert_project(&mut self, name: &str) -> Project {
-    let project = self.projects_.iter().find_map(|p| {
-      if p.name() == name {
+  fn upsert_project(&mut self, project_name: &str) -> Project {
+    let project = self.project_by_name(project_name);
+    if project.is_none() {
+      return self.add_project(project_name);
+    }
+    return project.unwrap();
+  }
+
+  pub fn project_by_name(&self, project_name: &str) -> Option<Project> {
+    return self.projects_.iter().find_map(|p| {
+      if p.name() == project_name {
         return Some(p.clone());
       }
       return None;
     });
-    if project.is_none() {
-      return self.add_project(name);
-    }
-    return project.unwrap();
   }
 
   pub fn project_by_id(&self, project_id: u128) -> Option<Project> {
