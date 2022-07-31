@@ -130,6 +130,7 @@ fn main() {
     Some("status") => {
       match pomidorka.borrow().active_task() {
         Some(task) => {
+          println!("Your active task: ");
           viewer.log_task(&task, true);
         }
         None => {
