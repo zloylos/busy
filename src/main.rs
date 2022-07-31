@@ -11,6 +11,7 @@ use std::{
 };
 
 use chrono::{Datelike, Timelike};
+use clap::ArgMatches;
 use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
@@ -97,12 +98,7 @@ fn main() {
       let command_matches = matches.subcommand_matches("start").unwrap();
       let project_name = command_matches.value_of("project_name").unwrap();
       let task_title = command_matches.value_of("task_title").unwrap();
-      let tags: Vec<String> = command_matches
-        .values_of_t("tags")
-        .unwrap()
-        .iter_mut()
-        .map(|tag: &mut String| tag.strip_prefix("+").unwrap().to_string())
-        .collect();
+      let tags = extract_tags("tags", command_matches);
 
       let task_res = {
         let mut p = pomidorka.borrow_mut();
@@ -141,12 +137,9 @@ fn main() {
         .ok()
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
-      let tags: Vec<String> = subcommand_matches
-        .values_of_t("tag")
-        .ok()
-        .unwrap_or_default();
+      let tags = extract_tags("tag", subcommand_matches);
 
-      let found_tags = pomidorka.borrow().storage().find_tag_by_names(&tags);
+      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
       viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
@@ -162,12 +155,9 @@ fn main() {
         .ok()
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
-      let tags = subcommand_matches
-        .values_of_t("tag")
-        .ok()
-        .unwrap_or_default();
+      let tags = extract_tags("tag", subcommand_matches);
 
-      let found_tags = pomidorka.borrow().storage().find_tag_by_names(&tags);
+      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
       viewer.show_stat(period, project_ids, &found_tags, with_tags);
@@ -247,6 +237,17 @@ fn clear_screen() {
   subprocess::Exec::cmd("clear")
     .join()
     .expect("clean cmd doesn't work");
+}
+
+fn extract_tags(values_of_t: &str, command_matches: &ArgMatches) -> Vec<String> {
+  let tags: Vec<String> = command_matches
+    .values_of_t(values_of_t)
+    .unwrap_or_default()
+    .iter_mut()
+    .map(|tag: &mut String| tag.strip_prefix("+").unwrap_or(tag).to_string())
+    .collect();
+
+  return tags;
 }
 
 fn projects_to_ids_set(

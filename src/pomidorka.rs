@@ -2,8 +2,6 @@ use crate::{project::Project, storage::Storage, tag::Tag, task::Task, traits::In
 
 pub struct Pomidorka {
   storage_: Storage,
-  projects_: Vec<Project>,
-  tasks_: Vec<Task>,
 }
 
 impl Pomidorka {
@@ -19,14 +17,7 @@ impl Pomidorka {
         .unwrap(),
     );
 
-    let tasks = storage.tasks();
-    let projects = storage.projects();
-
-    Self {
-      storage_: storage,
-      projects_: projects,
-      tasks_: tasks,
-    }
+    Self { storage_: storage }
   }
 
   pub fn storage(&self) -> &Storage {
@@ -69,12 +60,13 @@ impl Pomidorka {
       self.upsert_tags(tags),
     );
     self.storage_.add_task(&task);
-    self.tasks_.push(task.clone());
     return Ok(task);
   }
 
   pub fn stop(&mut self) -> Result<Task, String> {
-    let active_task_opt = self.tasks_.iter_mut().find(|t| t.stop_time().is_none());
+    let mut tasks = self.storage_.tasks();
+    let active_task_opt = tasks.iter_mut().find(|t| t.stop_time().is_none());
+
     if active_task_opt.is_none() {
       return Err("active task not found, start it firstly".to_string());
     }
@@ -82,34 +74,26 @@ impl Pomidorka {
     let active_task = active_task_opt.unwrap();
     active_task.stop();
 
-    self.storage_.remove_task(active_task.id());
-    self.storage_.add_task(active_task);
-
+    self.storage_.replace_task(active_task.clone());
     return Ok(active_task.clone());
   }
 
   pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
     self.storage_.replace_task(task);
-    self.tasks_ = self.storage_.tasks();
     return Ok(());
   }
 
   pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {
-    let task_position = self.tasks_.iter().position(|t| t.id() == task_id);
-    if task_position.is_none() {
-      return Err("task not found");
-    }
-
-    self.tasks_.remove(task_position.unwrap());
     self.storage_.remove_task(task_id);
-
+    // TODO: handle error
     return Ok(task_id);
   }
 
   pub fn tasks(&self, period: chrono::Duration) -> Vec<Task> {
     let current_time = chrono::Local::now();
     self
-      .tasks_
+      .storage_
+      .tasks()
       .iter()
       .filter(|t| current_time.signed_duration_since(t.start_time()) < period)
       .map(|t| t.clone())
@@ -118,22 +102,32 @@ impl Pomidorka {
 
   pub fn task_by_id(&self, task_id: u128) -> Option<Task> {
     return self
-      .tasks_
+      .storage_
+      .tasks()
       .iter()
       .find(|t| t.id() == task_id)
       .map(|t| t.clone());
   }
 
-  pub fn active_task(&mut self) -> Option<&Task> {
-    self.tasks_.iter().find(|t| t.stop_time().is_none())
+  pub fn active_task(&mut self) -> Option<Task> {
+    let tasks = self.storage_.tasks();
+    let found_task = tasks.iter().find(|t| t.stop_time().is_none());
+    match found_task {
+      Some(task) => Some(task.clone()),
+      None => None,
+    }
   }
 
   pub fn projects(&self) -> Vec<Project> {
-    self.projects_.clone()
+    self.storage_.projects()
   }
 
   pub fn tags(&self) -> Vec<Tag> {
-    self.storage_.tags().clone()
+    self.storage_.tags()
+  }
+
+  pub fn find_tag_by_names(&self, tags: &Vec<String>) -> Vec<Tag> {
+    self.storage_.find_tag_by_names(tags)
   }
 
   pub fn tasks_db_filepath(&self) -> &str {
@@ -143,8 +137,6 @@ impl Pomidorka {
   fn add_project(&mut self, project_name: &str) -> Project {
     let project = Project::new(self.storage_.state().last_project_id + 1, project_name);
     self.storage_.add_project(&project);
-    self.projects_.push(project.clone());
-
     return project;
   }
 
@@ -157,7 +149,7 @@ impl Pomidorka {
   }
 
   pub fn project_by_name(&self, project_name: &str) -> Option<Project> {
-    return self.projects_.iter().find_map(|p| {
+    return self.storage_.projects().iter().find_map(|p| {
       if p.name() == project_name {
         return Some(p.clone());
       }
@@ -166,7 +158,7 @@ impl Pomidorka {
   }
 
   pub fn project_by_id(&self, project_id: u128) -> Option<Project> {
-    self.projects_.iter().find_map(|c| {
+    self.storage_.projects().iter().find_map(|c| {
       if c.id() == project_id {
         return Some(c.clone());
       }
