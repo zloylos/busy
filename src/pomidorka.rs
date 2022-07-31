@@ -1,4 +1,4 @@
-use crate::{project::Project, storage::Storage, task::Task, traits::Indexable};
+use crate::{project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable};
 
 pub struct Pomidorka {
   storage_: Storage,
@@ -29,6 +29,29 @@ impl Pomidorka {
     }
   }
 
+  pub fn storage(&self) -> &Storage {
+    &self.storage_
+  }
+
+  fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
+    let state = self.storage_.state();
+    let mut pushed_ids = Vec::new();
+    let mut last_tag_id = state.last_tag_id + 1;
+    for tag in tags.iter() {
+      match self.storage_.find_tag_by_name(tag) {
+        Some(found_tag) => {
+          pushed_ids.push(found_tag.id());
+        }
+        None => {
+          self.storage_.add_tag(&Tag::new(last_tag_id, tag));
+          pushed_ids.push(last_tag_id);
+          last_tag_id += 1;
+        }
+      }
+    }
+    return pushed_ids;
+  }
+
   pub fn start(
     &mut self,
     project_name: &str,
@@ -43,7 +66,7 @@ impl Pomidorka {
       self.storage_.state().last_task_id + 1,
       project.id(),
       title,
-      tags,
+      self.upsert_tags(tags),
     );
     self.storage_.add_task(&task);
     self.tasks_.push(task.clone());

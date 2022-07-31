@@ -140,14 +140,15 @@ fn main() {
         .ok()
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
-      let tags = subcommand_matches
+      let tags: Vec<String> = subcommand_matches
         .values_of_t("tag")
         .ok()
         .unwrap_or_default();
 
+      let found_tags = pomidorka.borrow().storage().find_tag_by_names(&tags);
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
-      viewer.log_tasks_list(period, project_ids, &tags, show_full);
+      viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
     }
 
     Some("stat") => {
@@ -165,9 +166,10 @@ fn main() {
         .ok()
         .unwrap_or_default();
 
+      let found_tags = pomidorka.borrow().storage().find_tag_by_names(&tags);
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
-      viewer.show_stat(period, project_ids, &tags, with_tags);
+      viewer.show_stat(period, project_ids, &found_tags, with_tags);
     }
 
     Some("rm") => {

@@ -49,6 +49,39 @@ impl Storage {
     self.tasks.all()
   }
 
+  pub fn find_tag_by_name(&self, tag: &str) -> Option<Tag> {
+    match self.tags.all().iter().find(|t| t.name() == tag) {
+      Some(found_tag) => Some(found_tag.clone()),
+      _ => None,
+    }
+  }
+
+  pub fn find_tag_by_names(&self, tag_strs: &Vec<String>) -> Vec<Tag> {
+    let mut tags = Vec::with_capacity(tag_strs.len());
+    for tag_str in tag_strs.iter() {
+      let found_tag = self.find_tag_by_name(tag_str);
+      if found_tag.is_some() {
+        tags.push(found_tag.unwrap().clone());
+      }
+    }
+    return tags;
+  }
+
+  pub fn find_tags(&self, tag_ids: &Vec<u128>) -> Vec<Tag> {
+    let mut tags = Vec::new();
+    for tag_id in tag_ids.iter() {
+      match self.tag_by_id(*tag_id) {
+        Some(found_tag) => tags.push(found_tag.clone()),
+        _ => {}
+      };
+    }
+    return tags;
+  }
+
+  pub fn tag_by_id(&self, id: u128) -> Option<&Tag> {
+    self.tags.get_by_id(id)
+  }
+
   pub fn add_tag(&mut self, tag: &Tag) {
     self.tags.add(tag.clone());
   }
@@ -101,6 +134,10 @@ where
 
   fn storage_path(&self) -> &str {
     self.filepath.as_str()
+  }
+
+  fn get_by_id(&self, id: u128) -> Option<&T> {
+    self.buffer.iter().find(|item| item.id() == id)
   }
 
   fn restore(&mut self) {

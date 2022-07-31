@@ -7,7 +7,7 @@ pub struct Task {
   start_time_: chrono::DateTime<chrono::Local>,
   stop_time_: Option<chrono::DateTime<chrono::Local>>,
   title_: String,
-  tags_: Vec<String>,
+  tags_: Vec<u128>,
 }
 
 impl Indexable for Task {
@@ -17,7 +17,7 @@ impl Indexable for Task {
 }
 
 impl Task {
-  pub fn new(id: u128, project_id: u128, title: &str, tags: Vec<String>) -> Self {
+  pub fn new(id: u128, project_id: u128, title: &str, tags: Vec<u128>) -> Self {
     Self {
       id_: id,
       project_id_: project_id,
@@ -36,7 +36,7 @@ impl Task {
     self.title_.as_str()
   }
 
-  pub fn tags(&self) -> &Vec<String> {
+  pub fn tags(&self) -> &Vec<u128> {
     &self.tags_
   }
 

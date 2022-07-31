@@ -9,6 +9,7 @@ use colored::Colorize;
 use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   pomidorka::Pomidorka,
+  tag::Tag,
   task::{self, Task},
   traits::Indexable,
 };
@@ -32,7 +33,7 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     project_ids: Option<HashSet<u128>>,
-    tags: &Vec<String>,
+    tags: &Vec<Tag>,
     with_tags: bool,
   ) {
     let by_dates = self.tasks_by_day(period, project_ids, tags);
@@ -55,12 +56,13 @@ impl Viewer {
         *task_duration = task_duration.clone().checked_add(&task.duration()).unwrap();
 
         let project_tags = project_to_tags.entry(project_id).or_insert(BTreeSet::new());
-        for tag in task.tags() {
+        let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
+        for tag in task_tags {
           let tag_duration = tag_times
-            .entry(tag.to_string())
+            .entry(tag.name().to_string())
             .or_insert(chrono::Duration::zero());
           *tag_duration = tag_duration.clone().checked_add(&task.duration()).unwrap();
-          project_tags.insert(tag.to_string());
+          project_tags.insert(tag.name().to_string());
         }
       }
 
@@ -94,7 +96,7 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     maybe_project_ids: Option<HashSet<u128>>,
-    tags: &Vec<String>,
+    tags: &Vec<Tag>,
   ) -> Vec<Vec<Task>> {
     let tasks = self.pomidorka.borrow().tasks(period);
     if tasks.is_empty() {
@@ -106,23 +108,27 @@ impl Viewer {
     let has_project_ids = maybe_project_ids.is_some();
     let project_ids = maybe_project_ids.unwrap_or_default();
 
-    for t in tasks {
-      if has_project_ids && !project_ids.contains(&t.project_id()) {
+    for task in tasks {
+      if has_project_ids && !project_ids.contains(&task.project_id()) {
         continue;
       }
 
       if !tags.is_empty() {
-        if !t.tags().iter().any(|t| tags.contains(t)) {
+        if !task
+          .tags()
+          .iter()
+          .any(|t| tags.iter().position(|tag| tag.id() == *t).is_some())
+        {
           continue;
         }
       }
 
-      let task_date = t.start_time().date();
+      let task_date = task.start_time().date();
       if date.is_none() || date.unwrap() != task_date {
         by_dates.push(Vec::new());
         date = Some(task_date);
       }
-      by_dates.last_mut().unwrap().push(t);
+      by_dates.last_mut().unwrap().push(task);
     }
     return by_dates;
   }
@@ -131,7 +137,7 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     project_ids: Option<HashSet<u128>>,
-    tags: &Vec<String>,
+    tags: &Vec<Tag>,
     show_full: bool,
   ) {
     let by_dates = self.tasks_by_day(period, project_ids, tags);
@@ -189,10 +195,10 @@ impl Viewer {
       false => stop_time_msg.yellow(),
     };
 
-    let tags: Vec<String> = task
-      .tags()
+    let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
+    let tags: Vec<String> = task_tags
       .iter()
-      .map(|tag| tag.cyan().to_string())
+      .map(|tag| tag.name().cyan().to_string())
       .collect();
 
     let tags_str = tags.join(", ");
