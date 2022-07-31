@@ -144,7 +144,8 @@ fn main() {
       let task_title = command_matches.value_of("task_title").unwrap();
       let tags = extract_tags("tags", command_matches);
 
-      match { pomidorka.borrow_mut().start(project_name, task_title, tags) } {
+      let started_task_result = { pomidorka.borrow_mut().start(project_name, task_title, tags) };
+      match started_task_result {
         Ok(task) => {
           println!("Task started: ");
           viewer.log_task(&task, true);
@@ -154,7 +155,8 @@ fn main() {
     }
 
     Some("stop") => {
-      match { pomidorka.borrow_mut().stop() } {
+      let stopped_task_result = { pomidorka.borrow_mut().stop() };
+      match stopped_task_result {
         Ok(task) => {
           println!("Task stopped:");
           viewer.log_task(&task, true);
