@@ -22,18 +22,17 @@ impl GitSyncer {
       .join(".git")
       .exists()
     {
-      self.pull();
       self.set_remote();
       return;
     }
-    self.run_with_args(&["init"]);
+    self.git_with_args(&["init"]);
     self.set_remote();
-    self.run_with_args(&["add", "-A"]);
+    self.git_with_args(&["add", "-A"]);
     self.commit("initial");
   }
 
   pub fn commit(&mut self, msg: &str) {
-    self.run_with_args(&["commit", "-a", "-m", msg]);
+    self.git_with_args(&["commit", "-a", "-m", msg]);
   }
 
   pub fn sync(&mut self) {
@@ -42,7 +41,7 @@ impl GitSyncer {
   }
 
   fn push(&mut self) {
-    self.run_with_args(&[
+    self.git_with_args(&[
       "push",
       "--set-upstream",
       "origin",
@@ -51,12 +50,12 @@ impl GitSyncer {
   }
 
   fn pull(&mut self) {
-    self.run_with_args(&["pull", "origin", self.branch.clone().as_str()]);
+    self.git_with_args(&["pull", "origin", self.branch.clone().as_str()]);
   }
 
   fn set_remote(&mut self) {
     if self.remote.is_some() {
-      self.run_with_args(&[
+      self.git_with_args(&[
         "remote",
         "add",
         "origin",
@@ -65,12 +64,12 @@ impl GitSyncer {
     }
   }
 
-  fn run_with_args(&mut self, args: &[&str]) {
-    run_with_args(&self.main_folder_path, args);
+  fn git_with_args(&mut self, args: &[&str]) {
+    git_with_args(&self.main_folder_path, args);
   }
 }
 
-fn run_with_args(cwd: &str, args: &[&str]) {
+fn git_with_args(cwd: &str, args: &[&str]) {
   let output = std::process::Command::new("git")
     .current_dir(cwd)
     .args(args)
