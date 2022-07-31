@@ -345,6 +345,24 @@ fn run_edit_and_get_result<T: serde::ser::Serialize + serde::de::DeserializeOwne
   return serde_json::from_str(&buf).expect("can't decode item back, please try again");
 }
 
+fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile, editor: &str) {
+  let mut db_file = std::fs::File::options()
+    .write(true)
+    .read(true)
+    .open(all_data_filepath)
+    .unwrap();
+
+  let all_tags: serde_json::Value = serde_json::from_reader(&db_file).unwrap();
+
+  db_file.rewind().unwrap();
+  db_file.set_len(0).unwrap();
+
+  let edited_data = run_edit_and_get_result(&all_tags, tmp_file, editor);
+  serde_json::to_writer(&db_file, &edited_data).unwrap();
+
+  println!("Edit finished, data were saved");
+}
+
 fn edit(
   pomidorka: Rc<RefCell<Pomidorka>>,
   viewer: &Viewer,
@@ -397,40 +415,19 @@ fn edit(
     }
 
     EditDataType::AllTags => {
-      let filepath = pomidorka.borrow().tags_db_filepath().to_string();
-      let mut tags_db_file = std::fs::File::options()
-        .write(true)
-        .read(true)
-        .open(&filepath)
-        .unwrap();
-
-      let all_tags: serde_json::Value = serde_json::from_reader(&tags_db_file).unwrap();
-
-      tags_db_file.rewind().unwrap();
-      tags_db_file.set_len(0).unwrap();
-
-      let edited_tags = run_edit_and_get_result(&all_tags, &mut tmp_file, &editor);
-      serde_json::to_writer(&tags_db_file, &edited_tags).unwrap();
-
-      println!("Edit finished, tags were saved");
+      run_edit_all(
+        pomidorka.borrow().tags_db_filepath(),
+        &mut tmp_file,
+        editor.as_str(),
+      );
     }
 
     EditDataType::All => {
-      let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
-      let mut tasks_db_file = std::fs::File::options()
-        .write(true)
-        .read(true)
-        .open(&filepath)
-        .unwrap();
-
-      let all_tasks: serde_json::Value = serde_json::from_reader(&tasks_db_file).unwrap();
-      let edited_tasks = run_edit_and_get_result(&all_tasks, &mut tmp_file, &editor);
-
-      tasks_db_file.rewind().unwrap();
-      tasks_db_file.set_len(0).unwrap();
-
-      serde_json::to_writer(&tasks_db_file, &edited_tasks).unwrap();
-      println!("Edit finished, tasks were saved");
+      run_edit_all(
+        pomidorka.borrow().tasks_db_filepath(),
+        &mut tmp_file,
+        editor.as_str(),
+      );
     }
   };
 }
