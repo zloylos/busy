@@ -72,6 +72,7 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
     )
     .subcommand(clap::Command::new("rm").args(&[clap::Arg::new("task-id").index(1)]))
     .subcommand(clap::Command::new("projects"))
+    .subcommand(clap::Command::new("tags"))
     .subcommand(
       clap::Command::new("edit").args(&[
         clap::Arg::new("all").long("all").short('a'),
@@ -103,7 +104,14 @@ fn main() {
   match matches.subcommand_name() {
     Some("projects") => {
       clear_screen();
+      println!("{}", "Projects: ".bright_cyan());
       viewer.print_projects();
+    }
+
+    Some("tags") => {
+      clear_screen();
+      println!("{}", "Tags: ".bright_cyan());
+      viewer.print_tags();
     }
 
     Some("start") => {

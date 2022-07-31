@@ -28,6 +28,12 @@ impl Viewer {
     println!("{}: {}", tag.id(), tag.name());
   }
 
+  pub fn print_tags(&self) {
+    for tag in self.pomidorka.borrow().tags() {
+      self.print_tag(&tag);
+    }
+  }
+
   pub fn print_project(&self, project: &Project) {
     println!("{}: {}", project.id(), project.name());
   }
