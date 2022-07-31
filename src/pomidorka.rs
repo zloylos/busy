@@ -22,6 +22,13 @@ fn get_storage_dir_path() -> String {
     .to_owned();
 }
 
+fn get_git_remote() -> Option<String> {
+  match std::env::var("POMIDORKA_REMOTE") {
+    Ok(remote) => Some(remote),
+    Err(_) => None,
+  }
+}
+
 pub struct Pomidorka {
   storage_: Storage,
   version_control_: VersionControl,
@@ -30,9 +37,10 @@ pub struct Pomidorka {
 impl Pomidorka {
   pub fn new() -> Self {
     let storage_dir_path = get_storage_dir_path();
+    let version_control = VersionControl::new(&storage_dir_path, get_git_remote());
     Self {
       storage_: Storage::new(&storage_dir_path),
-      version_control_: VersionControl::new(&storage_dir_path),
+      version_control_: version_control,
     }
   }
 
