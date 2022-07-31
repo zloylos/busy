@@ -6,7 +6,6 @@ fn get_storage_dir_path() -> String {
     Err(_) => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
   };
 
-  println!("storage dir is: {:?}", storage_dir);
   std::fs::create_dir_all(&storage_dir).unwrap();
 
   return storage_dir
