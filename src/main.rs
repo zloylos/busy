@@ -88,15 +88,15 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
     .subcommand(
       clap::Command::new("edit").args(&[
         clap::Arg::new("all").long("all").short('a'),
-        clap::Arg::new("task")
+        clap::Arg::new("task-id")
           .long("task")
           .multiple_occurrences(true)
           .takes_value(true),
-        clap::Arg::new("project")
+        clap::Arg::new("project-id")
           .long("project")
           .multiple_occurrences(true)
           .takes_value(true),
-        clap::Arg::new("tag")
+        clap::Arg::new("tag-id")
           .long("tag")
           .multiple_occurrences(true)
           .takes_value(true),
@@ -222,9 +222,9 @@ fn main() {
         }
       };
 
-      extract_ids_and_edit("task", EditDataType::Task);
-      extract_ids_and_edit("project", EditDataType::Project);
-      extract_ids_and_edit("tag", EditDataType::Tag);
+      extract_ids_and_edit("task-id", EditDataType::Task);
+      extract_ids_and_edit("project-id", EditDataType::Project);
+      extract_ids_and_edit("tag-id", EditDataType::Tag);
 
       println!("\nEdit completed");
     }
