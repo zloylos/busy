@@ -91,8 +91,12 @@ impl Pomidorka {
       .collect()
   }
 
-  pub fn task_by_id(&self, task_id: u128) -> Option<&Task> {
-    return self.tasks_.iter().find(|t| t.id() == task_id);
+  pub fn task_by_id(&self, task_id: u128) -> Option<Task> {
+    return self
+      .tasks_
+      .iter()
+      .find(|t| t.id() == task_id)
+      .map(|t| t.clone());
   }
 
   pub fn active_task(&mut self) -> Option<&Task> {

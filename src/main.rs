@@ -167,15 +167,16 @@ fn main() {
     }
 
     Some("edit") => {
-      // TODO(zloylos): change hardcoded nvim, to an editor from $EDITOR / $VISUAL
+      let editor =
+        std::env::var("EDITOR").unwrap_or(std::env::var("VISUAL").unwrap_or("nvim".to_string()));
+
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
       if subcommand_matches.is_present("all") {
         let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
-        subprocess::Exec::cmd("nvim").arg(filepath).join().unwrap();
+        subprocess::Exec::cmd(&editor).arg(filepath).join().unwrap();
         return;
       }
 
-      let mut p = pomidorka.borrow_mut();
       let task_ids: Vec<u128> = subcommand_matches.values_of_t("task").unwrap();
       for task_id in task_ids {
         let mut tmp_file = tempfile::Builder::new()
@@ -184,11 +185,14 @@ fn main() {
           .tempfile()
           .unwrap();
 
-        let task = p.task_by_id(task_id).unwrap();
-        let task_str = serde_json::to_string_pretty(task).unwrap();
+        let task = {
+          let p = pomidorka.borrow();
+          p.task_by_id(task_id).unwrap()
+        };
+        let task_str = serde_json::to_string_pretty(&task).unwrap();
         tmp_file.write_all(task_str.as_bytes()).unwrap();
 
-        subprocess::Exec::cmd("nvim")
+        subprocess::Exec::cmd(&editor)
           .arg(tmp_file.path())
           .join()
           .expect("edit cmd doesn't work");
@@ -198,8 +202,12 @@ fn main() {
         tmp_file.read_to_string(&mut buf).unwrap();
 
         let updated_task: Task = serde_json::from_str(buf.as_str()).unwrap();
-        p.remove_task(updated_task.id()).unwrap();
-        p.push_task(updated_task);
+        viewer.log_task(&updated_task, true);
+        {
+          let mut p = pomidorka.borrow_mut();
+          p.remove_task(updated_task.id()).unwrap();
+          p.push_task(updated_task);
+        };
       }
       println!("Edit completed");
     }
