@@ -1,53 +1,76 @@
 use log::debug;
 
 use crate::{
-  project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable,
-  version_control::GitVersionControl,
+  project::Project, storage::Storage, sync::GitSyncer, tag::Tag, task::Task, traits::Indexable,
 };
 
-fn get_storage_dir_path() -> String {
-  let storage_dir = match std::env::var("POMIDORKA_DIR") {
-    Ok(dir) => std::path::Path::new(&dir).to_path_buf(),
-    Err(_) => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
-  };
+const ENV_POMIDORKA_DIR: &str = "POMIDORKA_DIR";
+const ENV_POMIDORKA_REMOTE: &str = "POMIDORKA_REMOTE";
+const ENV_POMIDORKA_REMOTE_BRANCH: &str = "POMIDORKA_REMOTE_BRANCH";
 
-  debug!("storage path is: {:?}", storage_dir);
-  std::fs::create_dir_all(&storage_dir).unwrap();
-
-  return storage_dir
-    .canonicalize()
-    .unwrap()
-    .to_str()
-    .unwrap()
-    .to_owned();
+fn get_env_var(key: &str) -> Option<String> {
+  match std::env::var(key) {
+    Ok(val) => Some(val),
+    Err(_) => None,
+  }
 }
 
-fn get_git_remote() -> Option<String> {
-  match std::env::var("POMIDORKA_REMOTE") {
-    Ok(remote) => Some(remote),
-    Err(_) => None,
+pub struct Config {
+  storage_dir_path: String,
+  git_remote: Option<String>,
+  git_remote_branch: Option<String>,
+}
+
+impl Config {
+  pub fn init() -> Self {
+    let storage_dir = match get_env_var(ENV_POMIDORKA_DIR) {
+      Some(dir) => std::path::Path::new(&dir).to_path_buf(),
+      None => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
+    };
+
+    debug!("storage path is: {:?}", storage_dir);
+    std::fs::create_dir_all(&storage_dir).unwrap();
+
+    let storage_path = storage_dir
+      .canonicalize()
+      .unwrap()
+      .to_str()
+      .unwrap()
+      .to_owned();
+
+    Self {
+      storage_dir_path: storage_path,
+      git_remote: get_env_var(ENV_POMIDORKA_REMOTE),
+      git_remote_branch: get_env_var(ENV_POMIDORKA_REMOTE_BRANCH),
+    }
   }
 }
 
 pub struct Pomidorka {
   storage_: Storage,
-  version_control_: GitVersionControl,
+  syncer_: GitSyncer,
+  config_: Config,
 }
 
 impl Pomidorka {
   pub fn new() -> Self {
-    let storage_dir_path = get_storage_dir_path();
-    let version_control = GitVersionControl::new(&storage_dir_path, get_git_remote());
+    let config = Config::init();
+    let syncer = GitSyncer::new(
+      &config.storage_dir_path,
+      config.git_remote.clone(),
+      config.git_remote_branch.clone(),
+    );
+
     Self {
-      storage_: Storage::new(&storage_dir_path),
-      version_control_: version_control,
+      storage_: Storage::new(&config.storage_dir_path),
+      syncer_: syncer,
+      config_: config,
     }
   }
 
   pub fn sync(&mut self) {
-    self.version_control_.pull();
-    self.version_control_.push();
-    self.storage_ = Storage::new(&get_storage_dir_path());
+    self.syncer_.sync();
+    self.storage_ = Storage::new(&self.config_.storage_dir_path);
   }
 
   fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
@@ -88,9 +111,7 @@ impl Pomidorka {
     );
     self.storage_.add_task(&task);
 
-    self
-      .version_control_
-      .commit(&format_task_commit("started", &task));
+    self.syncer_.commit(&format_task_commit("started", &task));
 
     return Ok(task);
   }
@@ -107,7 +128,7 @@ impl Pomidorka {
     match self.storage_.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .version_control_
+          .syncer_
           .commit(&format_task_commit("stopped", &active_task));
 
         Ok(active_task)
@@ -128,7 +149,7 @@ impl Pomidorka {
     match self.storage_.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .version_control_
+          .syncer_
           .commit(&format_task_commit("paused", &active_task));
 
         Ok(active_task)
@@ -153,7 +174,7 @@ impl Pomidorka {
     match self.storage_.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .version_control_
+          .syncer_
           .commit(&format_task_commit("unpaused", &active_task));
 
         Ok(active_task)

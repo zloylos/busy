@@ -1,15 +1,17 @@
 use log::debug;
 
-pub struct GitVersionControl {
+pub struct GitSyncer {
   main_folder_path: String,
   remote: Option<String>,
+  branch: String,
 }
 
-impl GitVersionControl {
-  pub fn new(main_folder_path: &str, remote: Option<String>) -> Self {
+impl GitSyncer {
+  pub fn new(main_folder_path: &str, remote: Option<String>, branch: Option<String>) -> Self {
     let mut obj = Self {
       main_folder_path: main_folder_path.to_owned(),
       remote,
+      branch: branch.unwrap_or("master".to_owned()),
     };
     let _ = obj.init();
     return obj;
@@ -34,12 +36,22 @@ impl GitVersionControl {
     self.run_with_args(&["commit", "-a", "-m", msg]);
   }
 
-  pub fn push(&mut self) {
-    self.run_with_args(&["push", "--set-upstream", "origin", "master"]);
+  pub fn sync(&mut self) {
+    self.pull();
+    self.push();
   }
 
-  pub fn pull(&mut self) {
-    self.run_with_args(&["pull", "origin", "master"]);
+  fn push(&mut self) {
+    self.run_with_args(&[
+      "push",
+      "--set-upstream",
+      "origin",
+      self.branch.clone().as_str(),
+    ]);
+  }
+
+  fn pull(&mut self) {
+    self.run_with_args(&["pull", "origin", self.branch.clone().as_str()]);
   }
 
   fn set_remote(&mut self) {
