@@ -64,6 +64,11 @@ impl Pomidorka {
     return Ok(active_task.clone());
   }
 
+  pub fn push_task(&mut self, task: Task) {
+    self.storage_.add_task(&task);
+    self.tasks_.push(task.clone());
+  }
+
   pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {
     let task_position = self.tasks_.iter().position(|t| t.id() == task_id);
     if task_position.is_none() {
@@ -84,6 +89,10 @@ impl Pomidorka {
       .filter(|t| current_time.signed_duration_since(t.start_time()) < period)
       .map(|t| t.clone())
       .collect()
+  }
+
+  pub fn task_by_id(&self, task_id: u128) -> Option<&Task> {
+    return self.tasks_.iter().find(|t| t.id() == task_id);
   }
 
   pub fn active_task(&mut self) -> Option<&Task> {
