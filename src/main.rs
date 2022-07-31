@@ -126,24 +126,30 @@ fn log_task(task: &task::Task, project_name: &str, full: bool) {
   let tags_str = tags.join(", ");
 
   println!(
-    "{}{:04}  {} to {} {:11}  {:8}  {}  [{}]",
-    " ".repeat(5),
-    task.id(),
-    task
-      .start_time()
-      .naive_local()
-      .format("%H:%M")
-      .to_string()
-      .green(),
-    colored_stop_time_msg,
-    format_duration(task.duration()),
-    project_name.red(),
-    match full {
-      true => task.title().purple().to_string(),
-      false => "".to_owned(),
-    },
-    tags_str.italic()
-  )
+    "{}",
+    format!(
+      "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:8}  [{tags}]",
+      padding = " ".repeat(5),
+      task_id = task.id(),
+      start_time = task
+        .start_time()
+        .naive_local()
+        .format("%H:%M")
+        .to_string()
+        .green(),
+      stop_time = colored_stop_time_msg,
+      duration = format_duration(task.duration()),
+      project = project_name.red(),
+      tags = tags_str.italic()
+    )
+  );
+  if full {
+    println!(
+      "{}{}",
+      " ".repeat(4 + 4 + 32),
+      task.title().dimmed().italic()
+    );
+  }
 }
 
 fn print_projects(pomidorka: &Pomidorka) {
