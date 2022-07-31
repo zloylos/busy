@@ -13,7 +13,7 @@ impl GitSyncer {
       remote,
       branch: branch.unwrap_or("master".to_owned()),
     };
-    let _ = obj.init();
+    obj.init();
     return obj;
   }
 
