@@ -25,7 +25,7 @@ impl Viewer {
   }
 
   pub fn print_tag(&self, tag: &Tag) {
-    println!("{}: {}", tag.id(), tag.name());
+    println!("id: {}, {}", tag.id(), tag.name());
   }
 
   pub fn print_tags(&self) {
@@ -35,7 +35,7 @@ impl Viewer {
   }
 
   pub fn print_project(&self, project: &Project) {
-    println!("{}: {}", project.id(), project.name());
+    println!("id: {}, {}", project.id(), project.name());
   }
 
   pub fn print_projects(&self) {
@@ -72,6 +72,7 @@ impl Viewer {
 
         let project_tags = project_to_tags.entry(project_id).or_insert(BTreeSet::new());
         let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
+
         for tag in task_tags {
           let tag_duration = tag_times
             .entry(tag.name().to_string())
