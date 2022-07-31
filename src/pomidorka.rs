@@ -33,9 +33,9 @@ impl Pomidorka {
     project_name: &str,
     title: &str,
     tags: Vec<String>,
-  ) -> Result<Task, &str> {
+  ) -> Result<Task, String> {
     if !self.active_task().is_none() {
-      return Err("active task already exists, stop it firstly");
+      return Err("active task already exists, stop it firstly".to_string());
     }
     let project = self.upsert_project(project_name);
     let task = Task::new(
@@ -49,10 +49,10 @@ impl Pomidorka {
     return Ok(task);
   }
 
-  pub fn stop(&mut self) -> Result<Task, &str> {
+  pub fn stop(&mut self) -> Result<Task, String> {
     let active_task_opt = self.tasks_.iter_mut().find(|t| t.stop_time().is_none());
     if active_task_opt.is_none() {
-      return Err("active task not found, start it firstly");
+      return Err("active task not found, start it firstly".to_string());
     }
 
     let active_task = active_task_opt.unwrap();

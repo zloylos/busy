@@ -28,13 +28,14 @@ fn main() {
     ]))
     .subcommand(clap::Command::new("stop"))
     .subcommand(clap::Command::new("log").args(&[
+      clap::Arg::new("days").long("days").takes_value(true),
       clap::Arg::new("full").long("full"),
-      clap::Arg::new("days").long("days"),
       clap::Arg::new("today").long("today"),
     ]))
     .subcommand(clap::Command::new("stat").args(&[
-      clap::Arg::new("days").long("days"),
+      clap::Arg::new("days").long("days").takes_value(true),
       clap::Arg::new("today").long("today"),
+      clap::Arg::new("with-tags").long("with-tags"),
     ]))
     .subcommand(clap::Command::new("projects"))
     .get_matches();
@@ -58,7 +59,11 @@ fn main() {
         .map(|tag: &mut String| tag.strip_prefix("+").unwrap().to_string())
         .collect();
 
-      match pomidorka.borrow_mut().start(project_name, task_title, tags) {
+      let task_res = {
+        let mut p = pomidorka.borrow_mut();
+        p.start(project_name, task_title, tags)
+      };
+      match task_res {
         Ok(task) => {
           println!("task started: ");
           viewer.log_task(&task, true);
@@ -68,7 +73,11 @@ fn main() {
     }
 
     Some("stop") => {
-      match pomidorka.borrow_mut().stop() {
+      let task_res = {
+        let mut p = pomidorka.borrow_mut();
+        p.stop()
+      };
+      match task_res {
         Ok(task) => {
           println!("task stopped:");
           viewer.log_task(&task, true);
@@ -84,7 +93,18 @@ fn main() {
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
-      viewer.log_tasks_list(Some(period), show_full);
+      viewer.log_tasks_list(period, show_full);
+    }
+
+    Some("stat") => {
+      let subcommand_matches = matches.subcommand_matches("stat").unwrap();
+      let show_today_only = subcommand_matches.is_present("today");
+      let with_tags = subcommand_matches.is_present("with-tags");
+
+      let period_arg = subcommand_matches.value_of_t("days").ok();
+      println!("period: {}", period_arg.unwrap_or_default());
+      let period = get_period(period_arg, show_today_only);
+      viewer.show_stat(period, with_tags);
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),

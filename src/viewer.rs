@@ -1,11 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+  cell::RefCell,
+  collections::{HashMap, HashSet},
+  rc::Rc,
+};
 
 use colored::Colorize;
 
 use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   pomidorka::Pomidorka,
-  task,
+  task::{self, Task},
 };
 
 pub struct Viewer {
@@ -23,18 +27,73 @@ impl Viewer {
     }
   }
 
-  pub fn log_tasks_list(&self, period: Option<chrono::Duration>, show_full: bool) {
-    let tasks = self.pomidorka.borrow().tasks(period.unwrap());
-    if tasks.is_empty() {
+  pub fn show_stat(&self, period: chrono::Duration, with_tags: bool) {
+    let by_dates = self.tasks_by_day(period);
+    if by_dates.is_empty() {
       println!("no tasks to show");
       return;
     }
 
+    for tasks in by_dates.iter() {
+      self.print_date(tasks);
+      let mut project_times: HashMap<u128, chrono::Duration> = HashMap::new();
+      let mut tag_times: HashMap<String, chrono::Duration> = HashMap::new();
+      let mut project_to_tags: HashMap<u128, HashSet<String>> = HashMap::new();
+
+      for task in tasks {
+        let project_id = task.project_id();
+        let task_duration = project_times
+          .entry(project_id)
+          .or_insert(chrono::Duration::zero());
+        *task_duration = task_duration.clone().checked_add(&task.duration()).unwrap();
+
+        let project_tags = project_to_tags.entry(project_id).or_insert(HashSet::new());
+        for tag in task.tags() {
+          let tag_duration = tag_times
+            .entry(tag.to_string())
+            .or_insert(chrono::Duration::zero());
+          *tag_duration = tag_duration.clone().checked_add(&task.duration()).unwrap();
+          project_tags.insert(tag.to_string());
+        }
+      }
+
+      for (&project_id, &project_time) in project_times.iter() {
+        let mut tags_str = "".to_string();
+        if with_tags {
+          for tag in project_to_tags.entry(project_id).or_default().iter() {
+            tags_str += &format!(
+              "\n    + {}: {}",
+              tag.bright_yellow().bold(),
+              format_duration_without_paddings(*tag_times.get(tag).unwrap())
+            );
+          }
+          tags_str += "\n";
+        }
+
+        println!(
+          "  {}: {}{}",
+          self.get_project_name(project_id).green(),
+          format_duration_without_paddings(project_time).bold(),
+          tags_str
+        );
+      }
+      if !with_tags {
+        println!("");
+      }
+    }
+  }
+
+  fn tasks_by_day(&self, period: chrono::Duration) -> Vec<Vec<Task>> {
+    let tasks = self.pomidorka.borrow().tasks(period);
+    if tasks.is_empty() {
+      return Vec::new();
+    }
+
     println!("{}", "".clear());
 
-    let mut by_dates: Vec<Vec<&task::Task>> = Vec::new();
+    let mut by_dates: Vec<Vec<Task>> = Vec::new();
     let mut date = None;
-    for t in tasks.iter() {
+    for t in tasks {
       let task_date = t.start_time().date();
       if date.is_none() || date.unwrap() != task_date {
         by_dates.push(Vec::new());
@@ -42,27 +101,43 @@ impl Viewer {
       }
       by_dates.last_mut().unwrap().push(t);
     }
+    return by_dates;
+  }
+
+  pub fn log_tasks_list(&self, period: chrono::Duration, show_full: bool) {
+    let by_dates = self.tasks_by_day(period);
+    if by_dates.is_empty() {
+      println!("no tasks to show");
+      return;
+    }
 
     for tasks in by_dates.iter() {
-      let date = tasks.first().unwrap().start_time().date();
-      let total_time = tasks
-        .iter()
-        .map(|t| t.duration())
-        .reduce(|acc, new_d| acc + new_d);
-
-      println!(
-        "{} — {}",
-        date.format("%A, %d %B %Y").to_string().bold().cyan(),
-        format_duration_without_paddings(total_time.unwrap())
-          .bold()
-          .bright_yellow()
-      );
-
+      self.print_date(tasks);
       for t in tasks.iter() {
         self.log_task(t, show_full);
       }
       println!("");
     }
+  }
+
+  fn total_time(&self, tasks: &Vec<Task>) -> chrono::Duration {
+    return tasks
+      .iter()
+      .map(|t| t.duration())
+      .reduce(|acc, new_d| acc + new_d)
+      .unwrap_or(chrono::Duration::zero());
+  }
+
+  fn print_date(&self, tasks: &Vec<Task>) {
+    let date = tasks.first().unwrap().start_time().date();
+    let total_time = self.total_time(tasks);
+    println!(
+      "{} — {}",
+      date.format("%A, %d %B %Y").to_string().bold().cyan(),
+      format_duration_without_paddings(total_time)
+        .bold()
+        .bright_yellow()
+    );
   }
 
   fn get_project_name(&self, project_id: u128) -> String {
