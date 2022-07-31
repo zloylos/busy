@@ -13,83 +13,99 @@ impl GitSyncer {
       remote,
       branch: branch.unwrap_or("master".to_owned()),
     };
-    obj.init();
+    obj.init().unwrap();
     return obj;
   }
 
-  fn init(&mut self) {
+  fn init(&mut self) -> std::io::Result<String> {
     if std::path::Path::new(&self.main_folder_path)
       .join(".git")
       .exists()
     {
-      self.set_remote();
-      return;
+      return self.set_remote();
     }
-    self.git_with_args(&["init"]);
-    self.set_remote();
-    self.pull();
+    self.git_with_args(&["init"])?;
+    self.set_remote()?;
+    self.pull()?;
 
-    self.git_with_args(&["add", "-A"]);
-    self.commit("initial");
+    self.git_with_args(&["add", "-A"])?;
+    self.commit("initial")?;
+
+    return Ok("initialization success".to_string());
   }
 
-  pub fn commit(&mut self, msg: &str) {
-    self.git_with_args(&["commit", "-a", "-m", msg]);
+  pub fn commit(&mut self, msg: &str) -> std::io::Result<String> {
+    return self.git_with_args(&["commit", "-a", "-m", msg]);
   }
 
-  pub fn sync(&mut self) {
-    self.pull();
-    self.push();
+  pub fn sync(&mut self) -> std::io::Result<String> {
+    let pull_output = self.pull()?;
+    let push_output = self.push()?;
+    return Ok(format!(
+      "git pull output:\n{}\n\ngit push output:\n{}",
+      pull_output, push_output
+    ));
   }
 
-  fn push(&mut self) {
-    self.git_with_args(&[
-      "push",
-      "--set-upstream",
-      "origin",
-      self.branch.clone().as_str(),
-    ]);
+  pub fn push_force(&mut self) -> std::io::Result<String> {
+    return self.git_with_args(&["push", "--force"]);
   }
 
-  fn pull(&mut self) {
-    self.git_with_args(&["pull", "origin", self.branch.clone().as_str()]);
+  pub fn pull_force(&mut self) -> std::io::Result<String> {
+    return self.git_with_args(&["pull", "--force", "--rebase"]);
   }
 
-  fn set_remote(&mut self) {
+  fn push(&mut self) -> std::io::Result<String> {
+    return self.git_with_args(&["push", "-u", "origin", self.branch.clone().as_str()]);
+  }
+
+  fn pull(&mut self) -> std::io::Result<String> {
+    return self.git_with_args(&["pull", "origin", self.branch.clone().as_str()]);
+  }
+
+  fn set_remote(&mut self) -> std::io::Result<String> {
     if self.remote.is_some() {
-      self.git_with_args(&[
-        "remote",
-        "add",
-        "origin",
-        self.remote.clone().unwrap().as_str(),
-      ]);
+      return match self.set_remote_url() {
+        Ok(res) => Ok(res),
+        Err(_) => self.git_with_args(&[
+          "remote",
+          "add",
+          "origin",
+          self.remote.clone().unwrap().as_str(),
+        ]),
+      };
     }
+    return Ok("remote isn't set".to_string());
   }
 
-  fn git_with_args(&mut self, args: &[&str]) {
-    git_with_args(&self.main_folder_path, args);
+  fn set_remote_url(&mut self) -> std::io::Result<String> {
+    self.git_with_args(&[
+      "remote",
+      "set-url",
+      "origin",
+      self.remote.clone().unwrap().as_str(),
+    ])
+  }
+
+  fn git_with_args(&mut self, args: &[&str]) -> std::io::Result<String> {
+    return git_with_args(&self.main_folder_path, args);
   }
 }
 
-fn git_with_args(cwd: &str, args: &[&str]) {
+fn git_with_args(cwd: &str, args: &[&str]) -> std::io::Result<String> {
   let output = std::process::Command::new("git")
     .current_dir(cwd)
     .args(args)
-    .output()
-    .unwrap();
+    .output()?;
 
   if !output.status.success() {
-    debug!(
-      "git with err: {} status: {}",
-      String::from_utf8(output.stderr.clone()).unwrap_or_default(),
-      output.status
-    );
-    return;
+    let stderr = String::from_utf8(output.stderr.clone()).unwrap_or_default();
+    debug!("git with err: {} status: {}", stderr, output.status);
+    return Err(std::io::Error::new(std::io::ErrorKind::Other, stderr));
   }
 
-  debug!(
-    "git with output: {:?} status: {}",
-    String::from_utf8(output.stdout.clone()).unwrap_or_default(),
-    output.status
-  );
+  let stdout = String::from_utf8(output.stdout.clone()).unwrap_or_default();
+  debug!("git with output: {:?} status: {}", stdout, output.status);
+
+  return Ok(stdout);
 }

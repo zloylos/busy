@@ -11,7 +11,7 @@ use std::{
 };
 
 use chrono::{Datelike, Timelike};
-use clap::ArgMatches;
+use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
 use log::debug;
 use task::TaskView;
@@ -31,98 +31,105 @@ mod task;
 mod traits;
 mod viewer;
 
-fn build_cli() -> clap::Command<'static> {
-  clap::Command::new("pomidorka")
+fn build_cli() -> Command<'static> {
+  Command::new("pomidorka")
     .about("Simple CLI time tracker")
     .arg_required_else_help(true)
     .trailing_var_arg(true)
     .subcommand(
-      clap::Command::new("start").about("start new task").args(&[
-        clap::Arg::new("project_name").required(true).index(1),
-        clap::Arg::new("task_title").required(true).index(2),
-        clap::Arg::new("tags")
+      Command::new("start").about("start new task").args(&[
+        Arg::new("project_name").required(true).index(1),
+        Arg::new("task_title").required(true).index(2),
+        Arg::new("tags")
           .help("should be prefixed with `+` like: +my-tag1 +mytag2")
           .index(3)
           .multiple_values(true),
       ]),
     )
     .subcommand(
-      clap::Command::new("status")
+      Command::new("status")
         .alias("st")
         .about("show active task if exists"),
     )
-    .subcommand(clap::Command::new("stop").about("stop current task"))
-    .subcommand(clap::Command::new("sync").about("sync tasks. please set $POMIDORKA_REMOTE env"))
-    .subcommand(clap::Command::new("pause").about("pause current task"))
-    .subcommand(clap::Command::new("continue").about("continue current task"))
+    .subcommand(Command::new("stop").about("stop current task"))
     .subcommand(
-      clap::Command::new("today")
+      Command::new("sync")
+        .about("sync tasks. please set $POMIDORKA_REMOTE env")
+        .args(&[
+          Arg::new("push-force").long("push-force"),
+          Arg::new("pull-force").long("pull-force"),
+        ]),
+    )
+    .subcommand(Command::new("pause").about("pause current task"))
+    .subcommand(Command::new("continue").about("continue current task"))
+    .subcommand(
+      Command::new("today")
         .alias("td")
         .about("show today tasks, shortcut for `log --today`")
         .args(&[
-          clap::Arg::new("full").long("full"),
-          clap::Arg::new("project")
+          Arg::new("full").long("full"),
+          Arg::new("project")
             .long("project")
             .multiple_values(true)
             .takes_value(true),
-          clap::Arg::new("tag")
+          Arg::new("tag")
             .long("tag")
             .multiple_values(true)
             .takes_value(true),
         ]),
     )
     .subcommand(
-      clap::Command::new("log").about("print last tasks").args(&[
-        clap::Arg::new("days").long("days").takes_value(true),
-        clap::Arg::new("full").long("full"),
-        clap::Arg::new("today").long("today"),
-        clap::Arg::new("project")
+      Command::new("log").about("print last tasks").args(&[
+        Arg::new("days").long("days").takes_value(true),
+        Arg::new("full").long("full"),
+        Arg::new("today").long("today"),
+        Arg::new("project")
           .long("project")
           .multiple_values(true)
           .takes_value(true),
-        clap::Arg::new("tag")
+        Arg::new("tag")
           .long("tag")
           .multiple_values(true)
           .takes_value(true),
       ]),
     )
     .subcommand(
-      clap::Command::new("stat")
+      Command::new("stat")
         .about("print projects & tags statistics")
         .args(&[
-          clap::Arg::new("days").long("days").takes_value(true),
-          clap::Arg::new("today").long("today"),
-          clap::Arg::new("with-tags").long("with-tags"),
-          clap::Arg::new("project")
+          Arg::new("days").long("days").takes_value(true),
+          Arg::new("today").long("today"),
+          Arg::new("with-tags").long("with-tags"),
+          Arg::new("project")
             .long("project")
             .multiple_values(true)
             .takes_value(true),
-          clap::Arg::new("tag")
+          Arg::new("tag")
             .long("tag")
             .multiple_values(true)
             .takes_value(true),
         ]),
     )
     .subcommand(
-      clap::Command::new("rm")
+      Command::new("rm")
         .about("remove specific task")
-        .args(&[clap::Arg::new("task-id").index(1)]),
+        .args(&[Arg::new("task-id").index(1)]),
     )
-    .subcommand(clap::Command::new("projects").about("print all projects"))
-    .subcommand(clap::Command::new("tags").about("print all tags"))
+    .subcommand(Command::new("projects").about("print all projects"))
+    .subcommand(Command::new("tags").about("print all tags"))
     .subcommand(
-      clap::Command::new("edit").args(&[
-        clap::Arg::new("all").long("all").short('a'),
-        clap::Arg::new("all-tags").long("all-tags"),
-        clap::Arg::new("task-id")
+      Command::new("edit").args(&[
+        Arg::new("all").long("all").short('a'),
+        Arg::new("all-tags").long("all-tags"),
+        Arg::new("task-id")
           .long("task")
           .multiple_occurrences(true)
           .takes_value(true),
-        clap::Arg::new("project-id")
+        Arg::new("project-id")
           .long("project")
           .multiple_occurrences(true)
           .takes_value(true),
-        clap::Arg::new("tag-id")
+        Arg::new("tag-id")
           .long("tag")
           .multiple_occurrences(true)
           .takes_value(true),
@@ -180,9 +187,37 @@ fn main() {
     }
 
     Some("sync") => {
-      println!("Start syncing…");
-      pomidorka.borrow_mut().sync();
-      println!("Syncing finished");
+      let command_matches = matches.subcommand_matches("sync").unwrap();
+      let push_force = command_matches.is_present("push-force");
+      let pull_force = command_matches.is_present("pull-force");
+
+      if push_force {
+        println!("Start sync push force…");
+        match pomidorka.borrow_mut().push_force() {
+          Ok(_) => println!("Sync push force success!"),
+          Err(err) => println!("Sync push force failed, output:\n{}", err),
+        };
+      } else if pull_force {
+        println!("Start sync pull force…");
+        match pomidorka.borrow_mut().pull_force() {
+          Ok(_) => println!("Sync pull force success!"),
+          Err(err) => println!("Sync pull force failed, output:\n{}", err),
+        };
+      } else {
+        println!("Start syncing…");
+        let sync_result = pomidorka.borrow_mut().sync();
+        match sync_result {
+          Ok(_) => {
+            println!("Syncing finished");
+          }
+          Err(err) => {
+            println!("Sync failed, err output:\n{}", err);
+            println!(
+              "You can try to use `pomidorka sync --push-force` or `pomidorka sync --pull-force`"
+            );
+          }
+        };
+      }
     }
 
     Some("stop") => {
@@ -360,14 +395,13 @@ fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile,
     .open(all_data_filepath)
     .unwrap();
 
-  let all_tags: serde_json::Value = serde_json::from_reader(&db_file).unwrap();
+  let all_data: serde_json::Value = serde_json::from_reader(&db_file).unwrap();
+  let edited_data = run_edit_and_get_result(&all_data, tmp_file, editor);
 
   db_file.rewind().unwrap();
   db_file.set_len(0).unwrap();
 
-  let edited_data = run_edit_and_get_result(&all_tags, tmp_file, editor);
   serde_json::to_writer(&db_file, &edited_data).unwrap();
-
   println!("Edit finished, data were saved");
 }
 

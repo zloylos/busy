@@ -68,9 +68,19 @@ impl Pomidorka {
     }
   }
 
-  pub fn sync(&mut self) {
-    self.syncer_.sync();
+  pub fn sync(&mut self) -> std::io::Result<String> {
+    self.syncer_.sync()?;
     self.storage_ = Storage::new(&self.config_.storage_dir_path);
+
+    return Ok("sync success".to_string());
+  }
+
+  pub fn push_force(&mut self) -> std::io::Result<String> {
+    self.syncer_.push_force()
+  }
+
+  pub fn pull_force(&mut self) -> std::io::Result<String> {
+    self.syncer_.pull_force()
   }
 
   fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
@@ -111,7 +121,7 @@ impl Pomidorka {
     );
     self.storage_.add_task(&task);
 
-    self.syncer_.commit(&format_task_commit("started", &task));
+    self.syncer_.commit(&format_task_commit("started", &task)).unwrap();
 
     return Ok(task);
   }
@@ -129,7 +139,7 @@ impl Pomidorka {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("stopped", &active_task));
+          .commit(&format_task_commit("stopped", &active_task)).unwrap();
 
         Ok(active_task)
       }
@@ -150,7 +160,7 @@ impl Pomidorka {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("paused", &active_task));
+          .commit(&format_task_commit("paused", &active_task)).unwrap();
 
         Ok(active_task)
       }
@@ -175,7 +185,7 @@ impl Pomidorka {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("unpaused", &active_task));
+          .commit(&format_task_commit("unpaused", &active_task)).unwrap();
 
         Ok(active_task)
       }
