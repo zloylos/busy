@@ -37,12 +37,12 @@ impl Storage {
     self.tasks.add(task.clone());
   }
 
-  pub fn remove_task(&mut self, task_id: u128) {
-    self.tasks.remove(task_id);
+  pub fn remove_task(&mut self, task_id: u128) -> Result<(), String> {
+    self.tasks.remove(task_id)
   }
 
-  pub fn replace_task(&mut self, task: Task) {
-    self.tasks.replace(task);
+  pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
+    self.tasks.replace(task)
   }
 
   pub fn tasks(&self) -> Vec<Task> {
@@ -150,23 +150,36 @@ where
     self.flush();
   }
 
-  fn remove(&mut self, id: u128) {
-    self.buffer.remove(self.position_by_id(id));
+  fn remove(&mut self, id: u128) -> Result<(), String> {
+    let position = self.position_by_id(id);
+    if position.is_none() {
+      return Err(format!("task with id: {} not found", id));
+    }
+
+    self.buffer.remove(position.unwrap());
     self.flush();
+
+    Ok(())
   }
 
-  fn replace(&mut self, item: T) {
+  fn replace(&mut self, item: T) -> Result<(), String> {
     let position = self.position_by_id(item.id());
-    self.buffer[position] = item;
+    if position.is_none() {
+      return Err(format!("task with id: {} not found", item.id()));
+    }
+
+    self.buffer[position.unwrap()] = item;
     self.flush();
+
+    Ok(())
   }
 
   fn all(&self) -> Vec<T> {
     self.buffer.clone()
   }
 
-  fn position_by_id(&self, id: u128) -> usize {
-    self.buffer.iter().position(|item| item.id() == id).unwrap()
+  fn position_by_id(&self, id: u128) -> Option<usize> {
+    self.buffer.iter().position(|item| item.id() == id)
   }
 
   fn flush(&mut self) {
@@ -175,8 +188,9 @@ where
     self
       .file
       .write_all(serde_json::to_string(&self.buffer).unwrap().as_bytes())
-      .unwrap();
-    self.file.flush().unwrap();
+      .expect("can't write information to db");
+
+    self.file.flush().expect("save db erorr");
   }
 }
 
@@ -202,16 +216,14 @@ mod test {
     }
   }
 
-  const STORAGE_PATH: &str = "/tmp/test.json";
-
   fn get_new_storage() -> StorageItem<TestType> {
-    StorageItem::<TestType>::new(STORAGE_PATH)
-  }
+    let tmp_file = tempfile::Builder::new()
+      .prefix("pomidorka")
+      .suffix(".json")
+      .tempfile()
+      .unwrap();
 
-  #[test]
-  fn storage_item_init() {
-    let storage = get_new_storage();
-    assert_eq!(storage.storage_path(), STORAGE_PATH);
+    StorageItem::<TestType>::new(tmp_file.into_temp_path().to_str().unwrap())
   }
 
   #[test]
@@ -237,10 +249,18 @@ mod test {
     };
 
     storage.add(new_item);
-    storage.remove(10);
+    storage.remove(10).unwrap();
     let all_items = storage.all();
 
     assert_eq!(all_items.is_empty(), true);
+  }
+
+  #[test]
+  fn storage_item_remove_from_empty_storage() {
+    let mut storage = get_new_storage();
+    storage
+      .remove(10)
+      .expect_err("shouldn't remove from empty storage");
   }
 
   #[test]
@@ -251,10 +271,12 @@ mod test {
       title_: "Hello".to_owned(),
     });
 
-    storage.replace(TestType {
-      id_: 10,
-      title_: "Hello, world".to_owned(),
-    });
+    storage
+      .replace(TestType {
+        id_: 10,
+        title_: "Hello, world".to_owned(),
+      })
+      .unwrap();
 
     let all_items = storage.all();
     assert_eq!(all_items.len(), 1);

@@ -74,19 +74,18 @@ impl Pomidorka {
     let active_task = active_task_opt.unwrap();
     active_task.stop();
 
-    self.storage_.replace_task(active_task.clone());
-    return Ok(active_task.clone());
+    match self.storage_.replace_task(active_task.clone()) {
+      Ok(_) => Ok(active_task.clone()),
+      Err(err) => Err(err),
+    }
   }
 
   pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
-    self.storage_.replace_task(task);
-    return Ok(());
+    self.storage_.replace_task(task)
   }
 
-  pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {
-    self.storage_.remove_task(task_id);
-    // TODO: handle error
-    return Ok(task_id);
+  pub fn remove_task(&mut self, task_id: u128) -> Result<(), String> {
+    self.storage_.remove_task(task_id)
   }
 
   pub fn tasks(&self, period: chrono::Duration) -> Vec<Task> {
