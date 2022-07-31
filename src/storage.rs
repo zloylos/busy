@@ -92,12 +92,20 @@ impl Storage {
     self.tags.all()
   }
 
+  pub fn replace_tag(&mut self, tag: Tag) -> Result<(), String> {
+    self.tags.replace(tag)
+  }
+
   pub fn add_project(&mut self, project: &Project) {
     self.projects.add(project.clone());
   }
 
   pub fn projects(&self) -> Vec<Project> {
     self.projects.all()
+  }
+
+  pub fn replace_project(&mut self, project: Project) -> Result<(), String> {
+    self.projects.replace(project)
   }
 }
 

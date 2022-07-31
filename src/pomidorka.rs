@@ -94,6 +94,10 @@ impl Pomidorka {
     self.storage_.replace_task(task)
   }
 
+  pub fn replace_project(&mut self, project: Project) -> Result<(), String> {
+    self.storage_.replace_project(project)
+  }
+
   pub fn remove_task(&mut self, task_id: u128) -> Result<(), String> {
     self.storage_.remove_task(task_id)
   }
@@ -135,8 +139,21 @@ impl Pomidorka {
     self.storage_.tags()
   }
 
+  pub fn tag_by_id(&self, tag_id: u128) -> Option<Tag> {
+    self.storage_.tags().iter().find_map(|c| {
+      if c.id() == tag_id {
+        return Some(c.clone());
+      }
+      return None;
+    })
+  }
+
   pub fn find_tag_by_names(&self, tags: &Vec<String>) -> Vec<Tag> {
     self.storage_.find_tag_by_names(tags)
+  }
+
+  pub fn replace_tag(&mut self, tag: Tag) -> Result<(), String> {
+    self.storage_.replace_tag(tag)
   }
 
   pub fn tasks_db_filepath(&self) -> &str {

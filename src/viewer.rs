@@ -9,6 +9,7 @@ use colored::Colorize;
 use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   pomidorka::Pomidorka,
+  project::Project,
   tag::Tag,
   task::{self, Task},
   traits::Indexable,
@@ -23,9 +24,17 @@ impl Viewer {
     Self { pomidorka }
   }
 
+  pub fn print_tag(&self, tag: &Tag) {
+    println!("{}: {}", tag.id(), tag.name());
+  }
+
+  pub fn print_project(&self, project: &Project) {
+    println!("{}: {}", project.id(), project.name());
+  }
+
   pub fn print_projects(&self) {
     for project in self.pomidorka.borrow().projects() {
-      println!("{}: {}", project.id(), project.name());
+      self.print_project(&project);
     }
   }
 

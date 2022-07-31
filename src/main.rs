@@ -12,12 +12,13 @@ use std::{
 
 use chrono::{Datelike, Timelike};
 use clap::ArgMatches;
+use colored::Colorize;
 use log::debug;
 use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
 
-use crate::{pomidorka::Pomidorka, task::Task};
+use crate::{pomidorka::Pomidorka, project::Project, tag::Tag, task::Task};
 
 mod duration_fmt;
 mod pomidorka;
@@ -76,6 +77,14 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
         clap::Arg::new("all").long("all").short('a'),
         clap::Arg::new("task")
           .long("task")
+          .multiple_occurrences(true)
+          .takes_value(true),
+        clap::Arg::new("project")
+          .long("project")
+          .multiple_occurrences(true)
+          .takes_value(true),
+        clap::Arg::new("tag")
+          .long("tag")
           .multiple_occurrences(true)
           .takes_value(true),
       ]),
@@ -180,61 +189,128 @@ fn main() {
     }
 
     Some("edit") => {
-      let editor =
-        std::env::var("EDITOR").unwrap_or(std::env::var("VISUAL").unwrap_or("nvim".to_string()));
-
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
       if subcommand_matches.is_present("all") {
-        let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
-        subprocess::Exec::cmd(&editor).arg(filepath).join().unwrap();
+        edit(Rc::clone(&pomidorka), &viewer, EditDataType::All, 0);
         return;
       }
 
-      let task_ids: Vec<u128> = subcommand_matches.values_of_t("task").unwrap();
-      for task_id in task_ids {
-        let mut tmp_file = tempfile::Builder::new()
-          .prefix("pomidorka_")
-          .suffix(".json")
-          .tempfile()
-          .unwrap();
+      let extract_ids_and_edit = |name: &str, edit_type: EditDataType| {
+        let item_ids: Vec<u128> = subcommand_matches.values_of_t(name).unwrap_or_default();
+        for id in item_ids {
+          edit(Rc::clone(&pomidorka), &viewer, edit_type, id);
+        }
+      };
 
-        debug!("edit task_id: {} tmp_file_path: {:?}", task_id, tmp_file);
+      extract_ids_and_edit("task", EditDataType::Task);
+      extract_ids_and_edit("project", EditDataType::Project);
+      extract_ids_and_edit("tag", EditDataType::Tag);
 
-        let task = {
-          let p = pomidorka.borrow();
-          p.task_by_id(task_id).unwrap()
-        };
-
-        let all_tags = pomidorka.borrow().tags();
-
-        let task_view = TaskView::from_task(&task, &all_tags);
-        let task_str = serde_json::to_string_pretty(&task_view).unwrap();
-        tmp_file.write_all(task_str.as_bytes()).unwrap();
-
-        subprocess::Exec::cmd(&editor)
-          .arg(tmp_file.path())
-          .join()
-          .expect("edit cmd doesn't work");
-
-        let mut buf = String::new();
-        tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
-        tmp_file.read_to_string(&mut buf).unwrap();
-
-        let updated_task_view: TaskView = serde_json::from_str(buf.as_str()).unwrap();
-        let updated_task = updated_task_view.to_task(&all_tags);
-
-        viewer.log_task(&updated_task, true);
-        {
-          let mut p = pomidorka.borrow_mut();
-          p.replace_task(updated_task).unwrap();
-        };
-      }
-      println!("Edit completed");
+      println!("\nEdit completed");
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
 
     None => println!("subcommand not found"),
+  };
+}
+
+#[derive(Debug, Clone, Copy)]
+enum EditDataType {
+  Task,
+  Project,
+  Tag,
+  All,
+}
+
+fn get_editor() -> String {
+  std::env::var("EDITOR").unwrap_or(std::env::var("VISUAL").unwrap_or("nvim".to_string()))
+}
+
+fn edit(
+  pomidorka: Rc<RefCell<Pomidorka>>,
+  viewer: &Viewer,
+  edit_data_type: EditDataType,
+  id: u128,
+) {
+  let editor = get_editor();
+  let mut tmp_file = tempfile::Builder::new()
+    .prefix("pomidorka_")
+    .suffix(".json")
+    .tempfile()
+    .unwrap();
+
+  debug!(
+    "edit {:?} id: {} tmp_file_path: {:?}",
+    edit_data_type, id, tmp_file
+  );
+
+  let run_edit = |tmp_file: &tempfile::NamedTempFile| {
+    subprocess::Exec::cmd(&editor)
+      .arg(tmp_file.path())
+      .join()
+      .expect("edit cmd doesn't work");
+  };
+
+  let get_edited_content = |tmp_file: &mut tempfile::NamedTempFile| {
+    let mut buf = String::new();
+    tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
+    tmp_file.read_to_string(&mut buf).unwrap();
+    return buf;
+  };
+
+  match edit_data_type {
+    EditDataType::Task => {
+      let task = pomidorka.borrow().task_by_id(id).unwrap();
+      let all_tags = pomidorka.borrow().tags();
+      let task_view = TaskView::from_task(&task, &all_tags);
+
+      let task_str = serde_json::to_string_pretty(&task_view).unwrap();
+      tmp_file.write_all(task_str.as_bytes()).unwrap();
+
+      run_edit(&tmp_file);
+      let updated_task_string = get_edited_content(&mut tmp_file);
+      let updated_task_view: TaskView = serde_json::from_str(&updated_task_string).unwrap();
+      let updated_task = updated_task_view.to_task(&all_tags);
+      viewer.log_task(&updated_task, true);
+      pomidorka.borrow_mut().replace_task(updated_task).unwrap();
+    }
+
+    EditDataType::Project => {
+      let project = pomidorka.borrow().project_by_id(id).unwrap();
+      let project_str = serde_json::to_string_pretty(&project).unwrap();
+      tmp_file.write_all(project_str.as_bytes()).unwrap();
+
+      run_edit(&tmp_file);
+      let updated_project_string = get_edited_content(&mut tmp_file);
+      let updated_project: Project = serde_json::from_str(&updated_project_string).unwrap();
+
+      println!("{}", "Updated project: ".bright_yellow());
+      viewer.print_project(&updated_project);
+      pomidorka
+        .borrow_mut()
+        .replace_project(updated_project)
+        .unwrap();
+    }
+
+    EditDataType::Tag => {
+      let tag = pomidorka.borrow().tag_by_id(id).unwrap();
+      let tag_str = serde_json::to_string_pretty(&tag).unwrap();
+      tmp_file.write_all(tag_str.as_bytes()).unwrap();
+
+      run_edit(&tmp_file);
+      let updated_tag_string = get_edited_content(&mut tmp_file);
+      let updated_tag: Tag = serde_json::from_str(&updated_tag_string).unwrap();
+
+      println!("{}", "Updated tag: ".bright_yellow());
+      viewer.print_tag(&updated_tag);
+      pomidorka.borrow_mut().replace_tag(updated_tag).unwrap();
+    }
+
+    EditDataType::All => {
+      let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
+      subprocess::Exec::cmd(&editor).arg(filepath).join().unwrap();
+    }
   };
 }
 
