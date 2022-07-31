@@ -65,6 +65,19 @@ impl Pomidorka {
     return Ok(task_id);
   }
 
+  pub fn stop_task(&mut self, task_id: u128) -> Result<u128, &str> {
+    let active_task_position = self.active_tasks_.iter().position(|t| t.id() == task_id);
+    if active_task_position.is_none() {
+      return Err("task not found");
+    }
+    let task = &mut self.active_tasks_[active_task_position.unwrap()];
+    task.stop();
+    self.storage_.remove_task(task_id);
+    self.storage_.add_task(&task);
+
+    return Ok(task_id);
+  }
+
   pub fn add_category(&mut self, category_name: &str) {
     let category = Category::new(self.storage_.state().last_category_id + 1, category_name);
     self.storage_.add_category(&category);

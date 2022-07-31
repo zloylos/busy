@@ -40,8 +40,8 @@ fn main() {
         .subcommand(
           clap::App::new("add")
             .arg(
-              clap::Arg::new("description")
-                .about("task description")
+              clap::Arg::new("title")
+                .about("task title")
                 .required(true)
                 .index(1),
             )
@@ -52,9 +52,8 @@ fn main() {
                 .default_value("0"),
             ),
         )
-        .subcommand(
-          clap::App::new("remove").arg(clap::Arg::new("task_id").required(true).index(1)),
-        ),
+        .subcommand(clap::App::new("remove").arg(clap::Arg::new("task_id").required(true).index(1)))
+        .subcommand(clap::App::new("stop").arg(clap::Arg::new("task_id").required(true).index(1))),
     )
     .get_matches();
 
@@ -90,11 +89,16 @@ fn main() {
       match tasks_subcommand_matches.subcommand_name() {
         Some("add") => {
           let add_matches = tasks_subcommand_matches.subcommand_matches("add").unwrap();
-          let description = add_matches.value_of("description").unwrap();
+          let title = add_matches.value_of("title").unwrap();
           let category_id: u128 = add_matches.value_of_t("category").unwrap();
 
-          println!("add task with category id: {}", category_id);
-          pomidorka.add_task(category_id, description);
+          println!(
+            "add task with category id: {} / {}",
+            category_id,
+            pomidorka.category_by_id(category_id).unwrap().name()
+          );
+
+          pomidorka.add_task(category_id, title);
           println!("task added, list of tasks: ");
           print_tasks_list(&pomidorka, true, None);
         }
@@ -109,6 +113,19 @@ fn main() {
           match pomidorka.remove_task(task_id_str.parse().unwrap()) {
             Ok(_) => println!("task removed"),
             Err(e) => println!("task remove err: {}", e),
+          };
+        }
+
+        Some("stop") => {
+          let task_id: u128 = tasks_subcommand_matches
+            .subcommand_matches("stop")
+            .unwrap()
+            .value_of_t("task_id")
+            .unwrap();
+
+          match pomidorka.stop_task(task_id) {
+            Ok(_) => println!("task stopped"),
+            Err(e) => println!("task stop err: {}", e),
           };
         }
 
@@ -152,7 +169,7 @@ fn print_tasks_list(pomidorka: &Pomidorka, only_active: bool, period: Option<chr
         task_date.format("%Y-%m-%d"),
         task_date.weekday()
       );
-      println!("{}", "-".repeat(20));
+      println!("{}", "—".repeat(50));
       date = Some(task_date);
     }
     let mut category_name = "default".to_owned();
@@ -174,14 +191,15 @@ fn print_task(task: &task::Task, category_name: &str) {
     );
   }
 
+  let task_duration = chrono::Duration::from_std(task.duration()).unwrap();
   println!(
-    "{} {:8} #{:04} {:03}min  {} {}",
-    task.start_time().naive_local().format("%H:%M"),
-    category_name,
+    "#{:04} | {} — {} | {:8} |  {} {}",
     task.id(),
-    chrono::Duration::from_std(task.duration())
-      .unwrap()
-      .num_minutes(),
+    task.start_time().naive_local().format("%H:%M"),
+    (task.start_time() + task_duration)
+      .naive_local()
+      .format("%H:%M"),
+    category_name,
     task.description(),
     time_left_str,
   )

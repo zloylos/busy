@@ -57,4 +57,11 @@ impl Task {
       )
       .unwrap_or_default()
   }
+
+  pub fn stop(&mut self) {
+    self.duration_ = chrono::Local::now()
+      .signed_duration_since(self.start_time_)
+      .to_std()
+      .unwrap();
+  }
 }
