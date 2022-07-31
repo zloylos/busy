@@ -30,7 +30,7 @@ mod task;
 mod traits;
 mod viewer;
 
-fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
+fn build_cli() -> clap::Command<'static> {
   clap::Command::new("pomidorka")
     .about("Simple CLI time tracker")
     .arg_required_else_help(true)
@@ -132,7 +132,7 @@ fn main() {
   env_logger::init();
 
   let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
-  let cmd = build_cli(Rc::clone(&pomidorka));
+  let cmd = build_cli();
   let matches = cmd.get_matches();
   let viewer = Viewer::new(Rc::clone(&pomidorka));
 
