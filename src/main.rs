@@ -20,24 +20,22 @@ mod viewer;
 
 fn main() {
   let matches = clap::Command::new("Pomidorka")
-    .subcommand(
-      clap::Command::new("start")
-        .arg(clap::Arg::new("project_name").required(true).index(1))
-        .arg(clap::Arg::new("task_title").required(true).index(2))
-        .arg(clap::Arg::new("tags").index(3).multiple_values(true)),
-    )
+    .arg_required_else_help(true)
+    .subcommand(clap::Command::new("start").args(&[
+      clap::Arg::new("project_name").required(true).index(1),
+      clap::Arg::new("task_title").required(true).index(2),
+      clap::Arg::new("tags").index(3).multiple_values(true),
+    ]))
     .subcommand(clap::Command::new("stop"))
-    .subcommand(
-      clap::Command::new("log")
-        .arg(clap::Arg::new("full").long("full"))
-        .arg(clap::Arg::new("days").default_value("-1").long("days"))
-        .arg(clap::Arg::new("today").long("today")),
-    )
-    .subcommand(
-      clap::Command::new("stat")
-        .arg(clap::Arg::new("days").default_value("-1").long("days"))
-        .arg(clap::Arg::new("today").long("today")),
-    )
+    .subcommand(clap::Command::new("log").args(&[
+      clap::Arg::new("full").long("full"),
+      clap::Arg::new("days").long("days"),
+      clap::Arg::new("today").long("today"),
+    ]))
+    .subcommand(clap::Command::new("stat").args(&[
+      clap::Arg::new("days").long("days"),
+      clap::Arg::new("today").long("today"),
+    ]))
     .subcommand(clap::Command::new("projects"))
     .get_matches();
 
@@ -63,7 +61,7 @@ fn main() {
       match pomidorka.borrow_mut().start(project_name, task_title, tags) {
         Ok(task) => {
           println!("task started: ");
-          viewer.log_task(&task, project_name, true);
+          viewer.log_task(&task, true);
         }
         Err(err) => println!("start task err: {}", err),
       };
@@ -73,12 +71,7 @@ fn main() {
       match pomidorka.borrow_mut().stop() {
         Ok(task) => {
           println!("task stopped:");
-          let project_id = task.project_id();
-          viewer.log_task(
-            &task,
-            pomidorka.borrow().project_by_id(project_id).unwrap().name(),
-            true,
-          );
+          viewer.log_task(&task, true);
         }
         Err(err) => println!("couldn't stop: {}", err),
       };
@@ -89,26 +82,28 @@ fn main() {
       let show_full = subcommand_matches.is_present("full");
       let show_today_only = subcommand_matches.is_present("today");
 
-      let mut period = match show_today_only {
-        true => chrono::Duration::seconds(
-          chrono::Local::now()
-            .time()
-            .num_seconds_from_midnight()
-            .into(),
-        ),
-        false => {
-          chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
-        }
-      };
-      let period_arg: i64 = subcommand_matches.value_of_t("days").unwrap();
-      if period_arg != -1 {
-        period = chrono::Duration::days(period_arg);
-      }
-
+      let period_arg = subcommand_matches.value_of_t("days").ok();
+      let period = get_period(period_arg, show_today_only);
       viewer.log_tasks_list(Some(period), show_full);
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
     None => println!("subcommand not found"),
+  };
+}
+
+fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Duration {
+  if period_days.is_some() {
+    return chrono::Duration::days(period_days.unwrap());
+  }
+
+  return match show_today_only {
+    true => chrono::Duration::seconds(
+      chrono::Local::now()
+        .time()
+        .num_seconds_from_midnight()
+        .into(),
+    ),
+    false => chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64),
   };
 }

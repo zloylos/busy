@@ -59,7 +59,7 @@ impl Viewer {
       );
 
       for t in tasks.iter() {
-        self.log_task(t, self.get_project_name(t.project_id()).as_str(), show_full);
+        self.log_task(t, show_full);
       }
       println!("");
     }
@@ -72,7 +72,7 @@ impl Viewer {
     return "default".to_string();
   }
 
-  pub fn log_task(&self, task: &task::Task, project_name: &str, show_full: bool) {
+  pub fn log_task(&self, task: &task::Task, show_full: bool) {
     let stop_time = task.stop_time();
     let stop_time_msg = stop_time
       .unwrap_or(chrono::Local::now())
@@ -107,7 +107,7 @@ impl Viewer {
           .green(),
         stop_time = colored_stop_time_msg,
         duration = format_duration(task.duration()),
-        project = project_name.red(),
+        project = self.get_project_name(task.project_id()).as_str().red(),
         tags = tags_str.italic()
       )
     );
