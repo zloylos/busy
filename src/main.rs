@@ -32,6 +32,7 @@ mod viewer;
 
 fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
   clap::Command::new("pomidorka")
+    .about("Simple CLI time tracker")
     .arg_required_else_help(true)
     .trailing_var_arg(true)
     .subcommand(clap::Command::new("start").args(&[
