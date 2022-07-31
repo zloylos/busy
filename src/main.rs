@@ -35,14 +35,19 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
     .about("Simple CLI time tracker")
     .arg_required_else_help(true)
     .trailing_var_arg(true)
-    .subcommand(clap::Command::new("start").args(&[
-      clap::Arg::new("project_name").required(true).index(1),
-      clap::Arg::new("task_title").required(true).index(2),
-      clap::Arg::new("tags").index(3).multiple_values(true),
-    ]))
-    .subcommand(clap::Command::new("stop"))
     .subcommand(
-      clap::Command::new("log").args(&[
+      clap::Command::new("start").about("start new task").args(&[
+        clap::Arg::new("project_name").required(true).index(1),
+        clap::Arg::new("task_title").required(true).index(2),
+        clap::Arg::new("tags")
+          .help("should be prefixed with `+` like: +my-tag1 +mytag2")
+          .index(3)
+          .multiple_values(true),
+      ]),
+    )
+    .subcommand(clap::Command::new("stop").about("stop current task"))
+    .subcommand(
+      clap::Command::new("log").about("print last tasks").args(&[
         clap::Arg::new("days").long("days").takes_value(true),
         clap::Arg::new("full").long("full"),
         clap::Arg::new("today").long("today"),
@@ -57,23 +62,29 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
       ]),
     )
     .subcommand(
-      clap::Command::new("stat").args(&[
-        clap::Arg::new("days").long("days").takes_value(true),
-        clap::Arg::new("today").long("today"),
-        clap::Arg::new("with-tags").long("with-tags"),
-        clap::Arg::new("project")
-          .long("project")
-          .multiple_values(true)
-          .takes_value(true),
-        clap::Arg::new("tag")
-          .long("tag")
-          .multiple_values(true)
-          .takes_value(true),
-      ]),
+      clap::Command::new("stat")
+        .about("print projects & tags statistics")
+        .args(&[
+          clap::Arg::new("days").long("days").takes_value(true),
+          clap::Arg::new("today").long("today"),
+          clap::Arg::new("with-tags").long("with-tags"),
+          clap::Arg::new("project")
+            .long("project")
+            .multiple_values(true)
+            .takes_value(true),
+          clap::Arg::new("tag")
+            .long("tag")
+            .multiple_values(true)
+            .takes_value(true),
+        ]),
     )
-    .subcommand(clap::Command::new("rm").args(&[clap::Arg::new("task-id").index(1)]))
-    .subcommand(clap::Command::new("projects"))
-    .subcommand(clap::Command::new("tags"))
+    .subcommand(
+      clap::Command::new("rm")
+        .about("remove specific task")
+        .args(&[clap::Arg::new("task-id").index(1)]),
+    )
+    .subcommand(clap::Command::new("projects").about("print all projects"))
+    .subcommand(clap::Command::new("tags").about("print all tags"))
     .subcommand(
       clap::Command::new("edit").args(&[
         clap::Arg::new("all").long("all").short('a'),
