@@ -95,7 +95,7 @@ fn build_cli() -> Command<'static> {
     )
     .subcommand(
       Command::new("stat")
-        .about("print projects & tags statistics")
+        .about("print projects & tags statistic")
         .args(&[
           Arg::new("days").long("days").takes_value(true),
           Arg::new("today").long("today"),
