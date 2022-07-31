@@ -424,13 +424,12 @@ fn edit(
         .unwrap();
 
       let all_tasks: serde_json::Value = serde_json::from_reader(&tasks_db_file).unwrap();
+      let edited_tasks = run_edit_and_get_result(&all_tasks, &mut tmp_file, &editor);
 
       tasks_db_file.rewind().unwrap();
       tasks_db_file.set_len(0).unwrap();
 
-      let edited_tasks = run_edit_and_get_result(&all_tasks, &mut tmp_file, &editor);
       serde_json::to_writer(&tasks_db_file, &edited_tasks).unwrap();
-
       println!("Edit finished, tasks were saved");
     }
   };
