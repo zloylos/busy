@@ -388,6 +388,7 @@ fn run_edit_and_get_result<T: serde::ser::Serialize + serde::de::DeserializeOwne
   return serde_json::from_str(&buf).expect("can't decode item back, please try again");
 }
 
+// TODO(zloylos): move replace functionality to pomidorka to use sync.commit after edit
 fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile, editor: &str) {
   let mut db_file = std::fs::File::options()
     .write(true)
