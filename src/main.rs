@@ -80,11 +80,11 @@ fn main() {
       let subcommand_matches = matches.subcommand_matches("log").unwrap();
       let full = subcommand_matches.is_present("full");
 
-      let mut period = chrono::Duration::days(7_i64);
+      let mut period =
+        chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64);
       let period_arg: i64 = subcommand_matches.value_of_t("days").unwrap();
       if period_arg != -1 {
-        period =
-          chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64);
+        period = chrono::Duration::days(period_arg);
       }
 
       log_tasks_list(&pomidorka, Some(period), full);
