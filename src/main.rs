@@ -63,6 +63,7 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
           .takes_value(true),
       ]),
     )
+    .subcommand(clap::Command::new("rm").args(&[clap::Arg::new("task-id").index(1)]))
     .subcommand(clap::Command::new("projects"))
     .subcommand(
       clap::Command::new("edit").args(&[
@@ -164,6 +165,19 @@ fn main() {
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
       viewer.show_stat(period, project_ids, &tags, with_tags);
+    }
+
+    Some("rm") => {
+      let subcommand_matches = matches.subcommand_matches("rm").unwrap();
+      let task_id: u128 = subcommand_matches.value_of_t("task-id").unwrap();
+      let task: Task;
+      {
+        let mut p = pomidorka.borrow_mut();
+        task = p.task_by_id(task_id).unwrap();
+        p.remove_task(task_id).unwrap();
+      };
+      println!("Removed task:");
+      viewer.log_task(&task, true);
     }
 
     Some("edit") => {
