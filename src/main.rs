@@ -131,6 +131,8 @@ fn main() {
     }
 
     Some("edit") => {
+      // TODO(zloylos): rewrite it to use tmp file for specific task and then replace it
+      // TODO(zloylos): change hardcoded nvim, to an editor from $EDITOR / $VISUAL
       let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
       subprocess::Exec::cmd("nvim").arg(filepath).join().unwrap();
     }
