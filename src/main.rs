@@ -167,7 +167,6 @@ fn main() {
     }
 
     Some("edit") => {
-      // TODO(zloylos): rewrite it to use tmp file for specific task and then replace it
       // TODO(zloylos): change hardcoded nvim, to an editor from $EDITOR / $VISUAL
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
       if subcommand_matches.is_present("all") {
