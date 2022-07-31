@@ -284,7 +284,11 @@ fn format_stop_time(
 }
 
 fn format_time(time: &chrono::DateTime<chrono::Local>) -> ColoredString {
-  return time.naive_local().format("%H:%M").to_string().black();
+  return time
+    .naive_local()
+    .format("%H:%M")
+    .to_string()
+    .bright_magenta();
 }
 
 fn print_time_interval(
