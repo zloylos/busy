@@ -3,7 +3,7 @@ extern crate colored;
 extern crate serde;
 extern crate serde_json;
 
-use chrono::Datelike;
+use chrono::{Datelike, Timelike};
 use colored::*;
 
 use crate::{
@@ -30,7 +30,8 @@ fn main() {
     .subcommand(
       clap::Command::new("log")
         .arg(clap::Arg::new("full").long("full"))
-        .arg(clap::Arg::new("days").default_value("-1").long("days")),
+        .arg(clap::Arg::new("days").default_value("-1").long("days"))
+        .arg(clap::Arg::new("today").long("today")),
     )
     .subcommand(clap::Command::new("projects"))
     .get_matches();
@@ -78,16 +79,26 @@ fn main() {
 
     Some("log") => {
       let subcommand_matches = matches.subcommand_matches("log").unwrap();
-      let full = subcommand_matches.is_present("full");
+      let show_full = subcommand_matches.is_present("full");
+      let show_today_only = subcommand_matches.is_present("today");
 
-      let mut period =
-        chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64);
+      let mut period = match show_today_only {
+        true => chrono::Duration::seconds(
+          chrono::Local::now()
+            .time()
+            .num_seconds_from_midnight()
+            .into(),
+        ),
+        false => {
+          chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
+        }
+      };
       let period_arg: i64 = subcommand_matches.value_of_t("days").unwrap();
       if period_arg != -1 {
         period = chrono::Duration::days(period_arg);
       }
 
-      log_tasks_list(&pomidorka, Some(period), full);
+      log_tasks_list(&pomidorka, Some(period), show_full);
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
