@@ -132,6 +132,10 @@ impl Pomidorka {
     self.projects_.clone()
   }
 
+  pub fn tags(&self) -> Vec<Tag> {
+    self.storage_.tags().clone()
+  }
+
   pub fn tasks_db_filepath(&self) -> &str {
     self.storage_.tasks_filepath()
   }

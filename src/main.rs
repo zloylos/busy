@@ -11,6 +11,7 @@ use std::{
 };
 
 use chrono::{Datelike, Timelike};
+use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
 
@@ -208,7 +209,11 @@ fn main() {
           let p = pomidorka.borrow();
           p.task_by_id(task_id).unwrap()
         };
-        let task_str = serde_json::to_string_pretty(&task).unwrap();
+
+        let all_tags = pomidorka.borrow().tags();
+
+        let task_view = TaskView::from_task(&task, &all_tags);
+        let task_str = serde_json::to_string_pretty(&task_view).unwrap();
         tmp_file.write_all(task_str.as_bytes()).unwrap();
 
         subprocess::Exec::cmd(&editor)
@@ -220,7 +225,9 @@ fn main() {
         tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
         tmp_file.read_to_string(&mut buf).unwrap();
 
-        let updated_task: Task = serde_json::from_str(buf.as_str()).unwrap();
+        let updated_task_view: TaskView = serde_json::from_str(buf.as_str()).unwrap();
+        let updated_task = updated_task_view.to_task(&all_tags);
+
         viewer.log_task(&updated_task, true);
         {
           let mut p = pomidorka.borrow_mut();

@@ -1,4 +1,4 @@
-use crate::traits::Indexable;
+use crate::{tag::Tag, traits::Indexable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
@@ -55,5 +55,56 @@ impl Task {
 
   pub fn stop(&mut self) {
     self.stop_time_ = Some(chrono::Local::now());
+  }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TaskView {
+  id: u128,
+  project_id: u128,
+  start_time: chrono::DateTime<chrono::Local>,
+  stop_time: Option<chrono::DateTime<chrono::Local>>,
+  title: String,
+  tags: Vec<String>,
+}
+
+impl TaskView {
+  pub fn from_task(task: &Task, all_tags: &Vec<Tag>) -> Self {
+    TaskView {
+      id: task.id(),
+      project_id: task.project_id(),
+      start_time: task.start_time(),
+      stop_time: task.stop_time(),
+      title: task.title().to_owned(),
+      tags: all_tags
+        .iter()
+        .filter(|tag| task.tags().contains(&tag.id()))
+        .map(|tag| tag.name().to_owned())
+        .collect(),
+    }
+  }
+
+  pub fn to_task(&self, all_tags: &Vec<Tag>) -> Task {
+    // TODO: upsert new tags after edit
+    let tag_ids = self
+      .tags
+      .iter()
+      .map(|tag_name| {
+        let found_tag = all_tags
+          .iter()
+          .find(|t| t.name() == tag_name)
+          .expect("add new tags unsupported yet");
+        return found_tag.id();
+      })
+      .collect();
+
+    Task {
+      id_: self.id,
+      project_id_: self.project_id,
+      start_time_: self.start_time,
+      stop_time_: self.stop_time,
+      title_: self.title.clone(),
+      tags_: tag_ids,
+    }
   }
 }
