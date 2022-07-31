@@ -7,8 +7,8 @@ use std::{
 use colored::{ColoredString, Colorize};
 
 use crate::{
+  busy::Busy,
   duration_fmt::{format_duration, format_duration_without_paddings},
-  pomidorka::Pomidorka,
   project::Project,
   tag::Tag,
   task::{self, DateTimeInterval, Task},
@@ -16,12 +16,12 @@ use crate::{
 };
 
 pub struct Viewer {
-  pomidorka: Rc<RefCell<Pomidorka>>,
+  busy: Rc<RefCell<Busy>>,
 }
 
 impl Viewer {
-  pub fn new(pomidorka: Rc<RefCell<Pomidorka>>) -> Self {
-    Self { pomidorka }
+  pub fn new(busy: Rc<RefCell<Busy>>) -> Self {
+    Self { busy }
   }
 
   pub fn print_tag(&self, tag: &Tag) {
@@ -29,7 +29,7 @@ impl Viewer {
   }
 
   pub fn print_tags(&self) {
-    for tag in self.pomidorka.borrow().tags() {
+    for tag in self.busy.borrow().tags() {
       self.print_tag(&tag);
     }
   }
@@ -39,7 +39,7 @@ impl Viewer {
   }
 
   pub fn print_projects(&self) {
-    for project in self.pomidorka.borrow().projects() {
+    for project in self.busy.borrow().projects() {
       self.print_project(&project);
     }
   }
@@ -71,7 +71,7 @@ impl Viewer {
         *task_duration = task_duration.clone().checked_add(&task.duration()).unwrap();
 
         let project_tags = project_to_tags.entry(project_id).or_insert(BTreeSet::new());
-        let task_tags = self.pomidorka.borrow().find_tags(task.tags());
+        let task_tags = self.busy.borrow().find_tags(task.tags());
 
         for tag in task_tags {
           let tag_duration = tag_times
@@ -114,7 +114,7 @@ impl Viewer {
     maybe_project_ids: Option<HashSet<u128>>,
     tags: &Vec<Tag>,
   ) -> Vec<Vec<Task>> {
-    let tasks = self.pomidorka.borrow().tasks(period);
+    let tasks = self.busy.borrow().tasks(period);
     if tasks.is_empty() {
       return Vec::new();
     }
@@ -192,14 +192,14 @@ impl Viewer {
   }
 
   fn get_project_name(&self, project_id: u128) -> String {
-    if let Some(task_project) = self.pomidorka.borrow().project_by_id(project_id) {
+    if let Some(task_project) = self.busy.borrow().project_by_id(project_id) {
       return task_project.name().to_string();
     }
     return "default".to_string();
   }
 
   pub fn log_task(&self, task: &task::Task, show_full: bool) {
-    let task_tags = self.pomidorka.borrow().find_tags(task.tags());
+    let task_tags = self.busy.borrow().find_tags(task.tags());
     let tags: Vec<String> = task_tags
       .iter()
       .map(|tag| tag.name().cyan().to_string())

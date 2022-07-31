@@ -48,11 +48,23 @@ impl GitSyncer {
   }
 
   pub fn push_force(&mut self) -> std::io::Result<String> {
-    return self.git_with_args(&["push", "--force"]);
+    return self.git_with_args(&[
+      "push",
+      "--force",
+      "-u",
+      "origin",
+      self.branch.clone().as_str(),
+    ]);
   }
 
   pub fn pull_force(&mut self) -> std::io::Result<String> {
-    return self.git_with_args(&["pull", "--force", "--rebase"]);
+    return self.git_with_args(&[
+      "pull",
+      "--force",
+      "--rebase",
+      "origin",
+      self.branch.clone().as_str(),
+    ]);
   }
 
   fn push(&mut self) -> std::io::Result<String> {

@@ -4,9 +4,9 @@ use crate::{
   project::Project, storage::Storage, sync::GitSyncer, tag::Tag, task::Task, traits::Indexable,
 };
 
-const ENV_POMIDORKA_DIR: &str = "POMIDORKA_DIR";
-const ENV_POMIDORKA_REMOTE: &str = "POMIDORKA_REMOTE";
-const ENV_POMIDORKA_REMOTE_BRANCH: &str = "POMIDORKA_REMOTE_BRANCH";
+const ENV_BUSY_DIR: &str = "BUSY_DIR";
+const ENV_BUSY_REMOTE: &str = "BUSY_REMOTE";
+const ENV_BUSY_REMOTE_BRANCH: &str = "BUSY_REMOTE_BRANCH";
 
 fn get_env_var(key: &str) -> Option<String> {
   match std::env::var(key) {
@@ -23,9 +23,9 @@ pub struct Config {
 
 impl Config {
   pub fn init() -> Self {
-    let storage_dir = match get_env_var(ENV_POMIDORKA_DIR) {
+    let storage_dir = match get_env_var(ENV_BUSY_DIR) {
       Some(dir) => std::path::Path::new(&dir).to_path_buf(),
-      None => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
+      None => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".busy"),
     };
 
     debug!("storage path is: {:?}", storage_dir);
@@ -40,19 +40,19 @@ impl Config {
 
     Self {
       storage_dir_path: storage_path,
-      git_remote: get_env_var(ENV_POMIDORKA_REMOTE),
-      git_remote_branch: get_env_var(ENV_POMIDORKA_REMOTE_BRANCH),
+      git_remote: get_env_var(ENV_BUSY_REMOTE),
+      git_remote_branch: get_env_var(ENV_BUSY_REMOTE_BRANCH),
     }
   }
 }
 
-pub struct Pomidorka {
+pub struct Busy {
   storage_: Storage,
   syncer_: GitSyncer,
   config_: Config,
 }
 
-impl Pomidorka {
+impl Busy {
   pub fn new() -> Self {
     let config = Config::init();
     let syncer = GitSyncer::new(

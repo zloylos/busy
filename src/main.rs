@@ -18,10 +18,10 @@ use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
 
-use crate::{pomidorka::Pomidorka, task::Task};
+use crate::{busy::Busy, task::Task};
 
+mod busy;
 mod duration_fmt;
-mod pomidorka;
 mod project;
 mod state;
 mod storage;
@@ -32,7 +32,7 @@ mod traits;
 mod viewer;
 
 fn build_cli() -> Command<'static> {
-  Command::new("pomidorka")
+  Command::new("busy")
     .about("Simple CLI time tracker")
     .arg_required_else_help(true)
     .trailing_var_arg(true)
@@ -54,7 +54,7 @@ fn build_cli() -> Command<'static> {
     .subcommand(Command::new("stop").about("stop current task"))
     .subcommand(
       Command::new("sync")
-        .about("sync tasks. please set $POMIDORKA_REMOTE env")
+        .about("sync tasks. please set $BUSY_REMOTE env")
         .args(&[
           Arg::new("push-force").long("push-force"),
           Arg::new("pull-force").long("pull-force"),
@@ -140,10 +140,10 @@ fn build_cli() -> Command<'static> {
 fn main() {
   env_logger::init();
 
-  let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
+  let busy = Rc::new(RefCell::new(Busy::new()));
   let cmd = build_cli();
   let matches = cmd.get_matches();
-  let viewer = Viewer::new(Rc::clone(&pomidorka));
+  let viewer = Viewer::new(Rc::clone(&busy));
 
   match matches.subcommand_name() {
     Some("projects") => {
@@ -159,7 +159,7 @@ fn main() {
     }
 
     Some("status") => {
-      match pomidorka.borrow().active_task() {
+      match busy.borrow().active_task() {
         Some(task) => {
           println!("Your active task: ");
           viewer.log_task(&task, true);
@@ -176,7 +176,7 @@ fn main() {
       let task_title = command_matches.value_of("task_title").unwrap();
       let tags = extract_tags("tags", command_matches);
 
-      let started_task_result = { pomidorka.borrow_mut().start(project_name, task_title, tags) };
+      let started_task_result = { busy.borrow_mut().start(project_name, task_title, tags) };
       match started_task_result {
         Ok(task) => {
           println!("Task started: ");
@@ -193,35 +193,33 @@ fn main() {
 
       if push_force {
         println!("Start sync push force…");
-        match pomidorka.borrow_mut().push_force() {
+        match busy.borrow_mut().push_force() {
           Ok(_) => println!("Sync push force success!"),
           Err(err) => println!("Sync push force failed, output:\n{}", err),
         };
       } else if pull_force {
         println!("Start sync pull force…");
-        match pomidorka.borrow_mut().pull_force() {
+        match busy.borrow_mut().pull_force() {
           Ok(_) => println!("Sync pull force success!"),
           Err(err) => println!("Sync pull force failed, output:\n{}", err),
         };
       } else {
         println!("Start syncing…");
-        let sync_result = pomidorka.borrow_mut().sync();
+        let sync_result = busy.borrow_mut().sync();
         match sync_result {
           Ok(_) => {
             println!("Syncing finished");
           }
           Err(err) => {
             println!("Sync failed, err output:\n{}", err);
-            println!(
-              "You can try to use `pomidorka sync --push-force` or `pomidorka sync --pull-force`"
-            );
+            println!("You can try to use `busy sync --push-force` or `busy sync --pull-force`");
           }
         };
       }
     }
 
     Some("stop") => {
-      let stopped_task_result = { pomidorka.borrow_mut().stop() };
+      let stopped_task_result = { busy.borrow_mut().stop() };
       match stopped_task_result {
         Ok(task) => {
           println!("Task stopped:");
@@ -232,7 +230,7 @@ fn main() {
     }
 
     Some("pause") => {
-      let paused_task_result = { pomidorka.borrow_mut().pause() };
+      let paused_task_result = { busy.borrow_mut().pause() };
       match paused_task_result {
         Ok(task) => {
           println!("Task paused:");
@@ -243,7 +241,7 @@ fn main() {
     }
 
     Some("resume") => {
-      let unpaused_task_result = { pomidorka.borrow_mut().resume() };
+      let unpaused_task_result = { busy.borrow_mut().resume() };
       match unpaused_task_result {
         Ok(task) => {
           println!("Task resumed:");
@@ -262,9 +260,9 @@ fn main() {
         .values_of_t("project")
         .ok()
         .unwrap_or_default();
-      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
       let tags = extract_tags("tag", subcommand_matches);
-      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+      let found_tags = busy.borrow().find_tag_by_names(&tags);
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
@@ -280,9 +278,9 @@ fn main() {
         .values_of_t("project")
         .ok()
         .unwrap_or_default();
-      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
       let tags = extract_tags("tag", subcommand_matches);
-      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+      let found_tags = busy.borrow().find_tag_by_names(&tags);
 
       let period = get_period(None, true);
       viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
@@ -297,9 +295,9 @@ fn main() {
         .values_of_t("project")
         .ok()
         .unwrap_or_default();
-      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
       let tags = extract_tags("tag", subcommand_matches);
-      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+      let found_tags = busy.borrow().find_tag_by_names(&tags);
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
@@ -312,7 +310,7 @@ fn main() {
       let task_id: u128 = subcommand_matches.value_of_t("task-id").unwrap();
       let task: Task;
       {
-        let mut p = pomidorka.borrow_mut();
+        let mut p = busy.borrow_mut();
         task = p.task_by_id(task_id).unwrap();
         p.remove_task(task_id).unwrap();
       };
@@ -324,19 +322,19 @@ fn main() {
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
 
       if subcommand_matches.is_present("all-tags") {
-        edit(Rc::clone(&pomidorka), &viewer, EditDataType::AllTags, 0);
+        edit(Rc::clone(&busy), &viewer, EditDataType::AllTags, 0);
         return;
       }
 
       if subcommand_matches.is_present("all") {
-        edit(Rc::clone(&pomidorka), &viewer, EditDataType::All, 0);
+        edit(Rc::clone(&busy), &viewer, EditDataType::All, 0);
         return;
       }
 
       let extract_ids_and_edit = |name: &str, edit_type: EditDataType| {
         let item_ids: Vec<u128> = subcommand_matches.values_of_t(name).unwrap_or_default();
         for id in item_ids {
-          edit(Rc::clone(&pomidorka), &viewer, edit_type, id);
+          edit(Rc::clone(&busy), &viewer, edit_type, id);
         }
       };
 
@@ -388,7 +386,7 @@ fn run_edit_and_get_result<T: serde::ser::Serialize + serde::de::DeserializeOwne
   return serde_json::from_str(&buf).expect("can't decode item back, please try again");
 }
 
-// TODO(zloylos): move replace functionality to pomidorka to use sync.commit after edit
+// TODO(zloylos): move replace functionality to busy to use sync.commit after edit
 fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile, editor: &str) {
   let mut db_file = std::fs::File::options()
     .write(true)
@@ -406,15 +404,10 @@ fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile,
   println!("Edit finished, data were saved");
 }
 
-fn edit(
-  pomidorka: Rc<RefCell<Pomidorka>>,
-  viewer: &Viewer,
-  edit_data_type: EditDataType,
-  id: u128,
-) {
+fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, id: u128) {
   let editor = get_editor();
   let mut tmp_file = tempfile::Builder::new()
-    .prefix("pomidorka_")
+    .prefix("busy_")
     .suffix(".json")
     .tempfile()
     .unwrap();
@@ -426,40 +419,37 @@ fn edit(
 
   match edit_data_type {
     EditDataType::Task => {
-      let task = pomidorka.borrow().task_by_id(id).unwrap();
-      let all_tags = pomidorka.borrow().tags();
+      let task = busy.borrow().task_by_id(id).unwrap();
+      let all_tags = busy.borrow().tags();
       let task_view = TaskView::from_task(&task, &all_tags);
 
       let updated_task_view = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
       let updated_task = updated_task_view.to_task(&all_tags);
       viewer.log_task(&updated_task, true);
-      pomidorka.borrow_mut().replace_task(updated_task).unwrap();
+      busy.borrow_mut().replace_task(updated_task).unwrap();
     }
 
     EditDataType::Project => {
-      let project = pomidorka.borrow().project_by_id(id).unwrap();
+      let project = busy.borrow().project_by_id(id).unwrap();
       let updated_project = run_edit_and_get_result(&project, &mut tmp_file, &editor);
 
       println!("{}", "Updated project: ".bright_yellow());
       viewer.print_project(&updated_project);
-      pomidorka
-        .borrow_mut()
-        .replace_project(updated_project)
-        .unwrap();
+      busy.borrow_mut().replace_project(updated_project).unwrap();
     }
 
     EditDataType::Tag => {
-      let tag = pomidorka.borrow().tag_by_id(id).unwrap();
+      let tag = busy.borrow().tag_by_id(id).unwrap();
       let updated_tag = run_edit_and_get_result(&tag, &mut tmp_file, &editor);
 
       println!("{}", "Updated tag: ".bright_yellow());
       viewer.print_tag(&updated_tag);
-      pomidorka.borrow_mut().replace_tag(updated_tag).unwrap();
+      busy.borrow_mut().replace_tag(updated_tag).unwrap();
     }
 
     EditDataType::AllTags => {
       run_edit_all(
-        pomidorka.borrow().tags_db_filepath(),
+        busy.borrow().tags_db_filepath(),
         &mut tmp_file,
         editor.as_str(),
       );
@@ -467,7 +457,7 @@ fn edit(
 
     EditDataType::All => {
       run_edit_all(
-        pomidorka.borrow().tasks_db_filepath(),
+        busy.borrow().tasks_db_filepath(),
         &mut tmp_file,
         editor.as_str(),
       );
@@ -496,12 +486,12 @@ fn extract_tags(values_of_t: &str, command_matches: &ArgMatches) -> Vec<String> 
 }
 
 fn projects_to_ids_set(
-  pomidorka: Rc<RefCell<Pomidorka>>,
+  busy: Rc<RefCell<Busy>>,
   project_names: Vec<String>,
 ) -> Option<HashSet<u128>> {
   let mut project_ids = HashSet::new();
   for project_name in project_names.iter() {
-    let project = pomidorka.borrow().project_by_name(project_name);
+    let project = busy.borrow().project_by_name(project_name);
     if project.is_some() {
       project_ids.insert(project.unwrap().id());
     }
