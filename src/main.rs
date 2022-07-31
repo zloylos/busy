@@ -126,6 +126,8 @@ fn log_tasks_list(pomidorka: &Pomidorka, period: Option<chrono::Duration>, full:
       "{} — {}",
       date.format("%A, %d %B %Y").to_string().bold().cyan(),
       format_duration_without_paddings(total_time.unwrap())
+        .bold()
+        .bright_yellow()
     );
 
     for t in tasks.iter() {

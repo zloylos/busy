@@ -17,10 +17,10 @@ pub fn format_duration_without_paddings(duration: chrono::Duration) -> String {
   let seconds = duration.num_seconds();
 
   return format!(
-    "{} {} {}",
-    format_number(hours, "h"),
-    format_number(minutes % 60, "m"),
-    format_number_force(seconds % 60, "s"),
+    "{}{}{}",
+    format_number_without_paddings(hours, "h"),
+    format_number_without_paddings(minutes % 60, "m"),
+    format_number_without_paddings(seconds % 60, "s"),
   );
 }
 
@@ -28,6 +28,14 @@ fn format_number(number: i64, prefix: &str) -> String {
   match number == 0 {
     true => "".to_owned(),
     false => format_number_force(number, prefix),
+  }
+}
+
+fn format_number_without_paddings(number: i64, prefix: &str) -> String {
+  let is_zero_and_not_seconds = number == 0 && prefix != "s";
+  match is_zero_and_not_seconds {
+    true => "".to_owned(),
+    false => format!("{}{} ", number, prefix),
   }
 }
 
