@@ -27,6 +27,8 @@ impl GitSyncer {
     }
     self.git_with_args(&["init"]);
     self.set_remote();
+    self.pull();
+
     self.git_with_args(&["add", "-A"]);
     self.commit("initial");
   }
