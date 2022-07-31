@@ -28,6 +28,7 @@ mod storage;
 mod tag;
 mod task;
 mod traits;
+mod version_control;
 mod viewer;
 
 fn build_cli() -> clap::Command<'static> {

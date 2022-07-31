@@ -1,6 +1,9 @@
 use log::debug;
 
-use crate::{project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable};
+use crate::{
+  project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable,
+  version_control::VersionControl,
+};
 
 fn get_storage_dir_path() -> String {
   let storage_dir = match std::env::var("POMIDORKA_DIR") {
@@ -21,12 +24,15 @@ fn get_storage_dir_path() -> String {
 
 pub struct Pomidorka {
   storage_: Storage,
+  version_control_: VersionControl,
 }
 
 impl Pomidorka {
   pub fn new() -> Self {
+    let storage_dir_path = get_storage_dir_path();
     Self {
-      storage_: Storage::new(&get_storage_dir_path()),
+      storage_: Storage::new(&storage_dir_path),
+      version_control_: VersionControl::new(&storage_dir_path),
     }
   }
 
@@ -40,7 +46,8 @@ impl Pomidorka {
           pushed_ids.push(found_tag.id());
         }
         None => {
-          self.storage_.add_tag(&Tag::new(last_tag_id, tag));
+          let new_tag = Tag::new(last_tag_id, tag);
+          self.storage_.add_tag(&new_tag);
           pushed_ids.push(last_tag_id);
           last_tag_id += 1;
         }
@@ -66,6 +73,11 @@ impl Pomidorka {
       self.upsert_tags(tags),
     );
     self.storage_.add_task(&task);
+
+    self
+      .version_control_
+      .commit(&format_task_commit("started", &task));
+
     return Ok(task);
   }
 
@@ -79,7 +91,13 @@ impl Pomidorka {
     active_task.stop();
 
     match self.storage_.replace_task(active_task.clone()) {
-      Ok(_) => Ok(active_task),
+      Ok(_) => {
+        self
+          .version_control_
+          .commit(&format_task_commit("stopped", &active_task));
+
+        Ok(active_task)
+      }
       Err(err) => Err(err),
     }
   }
@@ -94,7 +112,13 @@ impl Pomidorka {
     active_task.pause();
 
     match self.storage_.replace_task(active_task.clone()) {
-      Ok(_) => Ok(active_task),
+      Ok(_) => {
+        self
+          .version_control_
+          .commit(&format_task_commit("paused", &active_task));
+
+        Ok(active_task)
+      }
       Err(err) => Err(err),
     }
   }
@@ -113,7 +137,13 @@ impl Pomidorka {
     }
     active_task.unpause();
     match self.storage_.replace_task(active_task.clone()) {
-      Ok(_) => Ok(active_task),
+      Ok(_) => {
+        self
+          .version_control_
+          .commit(&format_task_commit("unpaused", &active_task));
+
+        Ok(active_task)
+      }
       Err(err) => Err(err),
     }
   }
@@ -229,4 +259,14 @@ impl Pomidorka {
       return None;
     })
   }
+}
+
+fn format_task_commit(prefix: &str, task: &Task) -> String {
+  format!(
+    "{} task title: {} id: {} project: {}",
+    prefix,
+    task.title(),
+    task.id(),
+    task.project_id()
+  )
 }

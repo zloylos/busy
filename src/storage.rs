@@ -209,7 +209,11 @@ where
     self.file.rewind().unwrap();
     self
       .file
-      .write_all(serde_json::to_string(&self.buffer).unwrap().as_bytes())
+      .write_all(
+        serde_json::to_string_pretty(&self.buffer)
+          .unwrap()
+          .as_bytes(),
+      )
       .expect("can't write information to db");
 
     self.file.flush().expect("save db erorr");
