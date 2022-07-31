@@ -45,10 +45,15 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
           .multiple_values(true),
       ]),
     )
-    .subcommand(clap::Command::new("status").about("show active task if exists"))
+    .subcommand(
+      clap::Command::new("status")
+        .alias("st")
+        .about("show active task if exists"),
+    )
     .subcommand(clap::Command::new("stop").about("stop current task"))
     .subcommand(
       clap::Command::new("today")
+        .alias("td")
         .about("show today tasks, shortcut for `log --today`")
         .args(&[
           clap::Arg::new("full").long("full"),
