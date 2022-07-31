@@ -2,25 +2,25 @@ use crate::traits::Indexable;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Tag {
-  id_: u128,
-  name_: String,
+  id: uuid::Uuid,
+  name: String,
 }
 
 impl Indexable for Tag {
-  fn id(&self) -> u128 {
-    self.id_
+  fn id(&self) -> &uuid::Uuid {
+    &self.id
   }
 }
 
 impl Tag {
-  pub fn new(id: u128, name: &str) -> Self {
+  pub fn new(name: &str) -> Self {
     Self {
-      id_: id,
-      name_: name.to_owned(),
+      id: uuid::Uuid::new_v4(),
+      name: name.to_owned(),
     }
   }
 
   pub fn name(&self) -> &str {
-    self.name_.as_str()
+    self.name.as_str()
   }
 }

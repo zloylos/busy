@@ -47,9 +47,9 @@ impl Config {
 }
 
 pub struct Busy {
-  storage_: Storage,
-  syncer_: GitSyncer,
-  config_: Config,
+  storage: Storage,
+  syncer: GitSyncer,
+  config: Config,
 }
 
 impl Busy {
@@ -62,41 +62,42 @@ impl Busy {
     );
 
     Self {
-      storage_: Storage::new(&config.storage_dir_path),
-      syncer_: syncer,
-      config_: config,
+      storage: Storage::new(&config.storage_dir_path),
+      syncer,
+      config,
     }
   }
 
   pub fn sync(&mut self) -> std::io::Result<String> {
-    self.syncer_.sync()?;
-    self.storage_ = Storage::new(&self.config_.storage_dir_path);
+    self.syncer.sync()?;
+    self.storage = Storage::new(&self.config.storage_dir_path);
 
     return Ok("sync success".to_string());
   }
 
   pub fn push_force(&mut self) -> std::io::Result<String> {
-    self.syncer_.push_force()
+    self.syncer.push_force()
   }
 
   pub fn pull_force(&mut self) -> std::io::Result<String> {
-    self.syncer_.pull_force()
+    self.syncer.pull_force()
   }
 
-  fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
-    let state = self.storage_.state();
+  pub fn ids(&self) -> Vec<uuid::Uuid> {
+    self.storage.ids()
+  }
+
+  fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<uuid::Uuid> {
     let mut pushed_ids = Vec::new();
-    let mut last_tag_id = state.last_tag_id + 1;
     for tag in tags.iter() {
-      match self.storage_.find_tag_by_name(tag) {
+      match self.storage.find_tag_by_name(tag) {
         Some(found_tag) => {
-          pushed_ids.push(found_tag.id());
+          pushed_ids.push(found_tag.id().clone());
         }
         None => {
-          let new_tag = Tag::new(last_tag_id, tag);
-          self.storage_.add_tag(&new_tag);
-          pushed_ids.push(last_tag_id);
-          last_tag_id += 1;
+          let new_tag = Tag::new(tag);
+          self.storage.add_tag(&new_tag);
+          pushed_ids.push(new_tag.id().clone());
         }
       }
     }
@@ -113,16 +114,11 @@ impl Busy {
       return Err("active task already exists, stop it firstly".to_string());
     }
     let project = self.upsert_project(project_name);
-    let task = Task::new(
-      self.storage_.state().last_task_id + 1,
-      project.id(),
-      title,
-      self.upsert_tags(tags),
-    );
-    self.storage_.add_task(&task);
+    let task = Task::new(project.id(), title, self.upsert_tags(tags));
+    self.storage.add_task(&task);
 
     self
-      .syncer_
+      .syncer
       .commit(&format_task_commit("started", &task))
       .unwrap();
 
@@ -138,10 +134,10 @@ impl Busy {
     let mut active_task = maybe_active_task.unwrap();
     active_task.stop();
 
-    match self.storage_.replace_task(active_task.clone()) {
+    match self.storage.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .syncer_
+          .syncer
           .commit(&format_task_commit("stopped", &active_task))
           .unwrap();
 
@@ -160,10 +156,10 @@ impl Busy {
     let mut active_task = maybe_active_task.unwrap();
     active_task.pause();
 
-    match self.storage_.replace_task(active_task.clone()) {
+    match self.storage.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .syncer_
+          .syncer
           .commit(&format_task_commit("paused", &active_task))
           .unwrap();
 
@@ -186,10 +182,10 @@ impl Busy {
       return Err(ERR_MSG.to_owned());
     }
     active_task.resume();
-    match self.storage_.replace_task(active_task.clone()) {
+    match self.storage.replace_task(active_task.clone()) {
       Ok(_) => {
         self
-          .syncer_
+          .syncer
           .commit(&format_task_commit("continue", &active_task))
           .unwrap();
 
@@ -200,21 +196,21 @@ impl Busy {
   }
 
   pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
-    self.storage_.replace_task(task)
+    self.storage.replace_task(task)
   }
 
   pub fn replace_project(&mut self, project: Project) -> Result<(), String> {
-    self.storage_.replace_project(project)
+    self.storage.replace_project(project)
   }
 
-  pub fn remove_task(&mut self, task_id: u128) -> Result<(), String> {
-    self.storage_.remove_task(task_id)
+  pub fn remove_task(&mut self, task_id: uuid::Uuid) -> Result<(), String> {
+    self.storage.remove_task(task_id)
   }
 
   pub fn tasks(&self, period: chrono::Duration) -> Vec<Task> {
     let current_time = chrono::Local::now();
     self
-      .storage_
+      .storage
       .tasks()
       .iter()
       .filter(|t| current_time.signed_duration_since(t.start_time()) < period)
@@ -222,21 +218,21 @@ impl Busy {
       .collect()
   }
 
-  pub fn find_tags(&self, tag_ids: &Vec<u128>) -> Vec<Tag> {
-    self.storage_.find_tags(tag_ids)
+  pub fn find_tags(&self, tag_ids: &Vec<uuid::Uuid>) -> Vec<Tag> {
+    self.storage.find_tags(tag_ids)
   }
 
-  pub fn task_by_id(&self, task_id: u128) -> Option<Task> {
+  pub fn task_by_id(&self, task_id: uuid::Uuid) -> Option<Task> {
     return self
-      .storage_
+      .storage
       .tasks()
       .iter()
-      .find(|t| t.id() == task_id)
+      .find(|t| t.id() == &task_id)
       .map(|t| t.clone());
   }
 
   pub fn active_task(&self) -> Option<Task> {
-    let tasks = self.storage_.tasks();
+    let tasks = self.storage.tasks();
     let found_task = tasks
       .iter()
       .find(|t| t.stop_time().is_none() || t.is_paused());
@@ -247,16 +243,16 @@ impl Busy {
   }
 
   pub fn projects(&self) -> Vec<Project> {
-    self.storage_.projects()
+    self.storage.projects()
   }
 
   pub fn tags(&self) -> Vec<Tag> {
-    self.storage_.tags()
+    self.storage.tags()
   }
 
-  pub fn tag_by_id(&self, tag_id: u128) -> Option<Tag> {
-    self.storage_.tags().iter().find_map(|c| {
-      if c.id() == tag_id {
+  pub fn tag_by_id(&self, tag_id: uuid::Uuid) -> Option<Tag> {
+    self.storage.tags().iter().find_map(|c| {
+      if c.id() == &tag_id {
         return Some(c.clone());
       }
       return None;
@@ -264,24 +260,24 @@ impl Busy {
   }
 
   pub fn find_tag_by_names(&self, tags: &Vec<String>) -> Vec<Tag> {
-    self.storage_.find_tag_by_names(tags)
+    self.storage.find_tag_by_names(tags)
   }
 
   pub fn replace_tag(&mut self, tag: Tag) -> Result<(), String> {
-    self.storage_.replace_tag(tag)
+    self.storage.replace_tag(tag)
   }
 
   pub fn tasks_db_filepath(&self) -> &str {
-    self.storage_.tasks_filepath()
+    self.storage.tasks_filepath()
   }
 
   pub fn tags_db_filepath(&self) -> &str {
-    self.storage_.tags_filepath()
+    self.storage.tags_filepath()
   }
 
   fn add_project(&mut self, project_name: &str) -> Project {
-    let project = Project::new(self.storage_.state().last_project_id + 1, project_name);
-    self.storage_.add_project(&project);
+    let project = Project::new(project_name);
+    self.storage.add_project(&project);
     return project;
   }
 
@@ -294,7 +290,7 @@ impl Busy {
   }
 
   pub fn project_by_name(&self, project_name: &str) -> Option<Project> {
-    return self.storage_.projects().iter().find_map(|p| {
+    return self.storage.projects().iter().find_map(|p| {
       if p.name() == project_name {
         return Some(p.clone());
       }
@@ -302,9 +298,9 @@ impl Busy {
     });
   }
 
-  pub fn project_by_id(&self, project_id: u128) -> Option<Project> {
-    self.storage_.projects().iter().find_map(|c| {
-      if c.id() == project_id {
+  pub fn project_by_id(&self, project_id: uuid::Uuid) -> Option<Project> {
+    self.storage.projects().iter().find_map(|c| {
+      if c.id() == &project_id {
         return Some(c.clone());
       }
       return None;

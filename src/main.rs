@@ -2,6 +2,7 @@ extern crate chrono;
 extern crate colored;
 extern crate serde;
 extern crate serde_json;
+extern crate uuid;
 
 use std::{
   cell::RefCell,
@@ -16,14 +17,13 @@ use colored::Colorize;
 use log::debug;
 use task::TaskView;
 use traits::Indexable;
-use viewer::Viewer;
+use viewer::{format_id, Viewer};
 
 use crate::{busy::Busy, task::Task};
 
 mod busy;
 mod duration_fmt;
 mod project;
-mod state;
 mod storage;
 mod sync;
 mod tag;
@@ -307,7 +307,7 @@ fn main() {
 
     Some("rm") => {
       let subcommand_matches = matches.subcommand_matches("rm").unwrap();
-      let task_id: u128 = subcommand_matches.value_of_t("task-id").unwrap();
+      let task_id: uuid::Uuid = subcommand_matches.value_of_t("task-id").unwrap();
       let task: Task;
       {
         let mut p = busy.borrow_mut();
@@ -322,18 +322,33 @@ fn main() {
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
 
       if subcommand_matches.is_present("all-tags") {
-        edit(Rc::clone(&busy), &viewer, EditDataType::AllTags, 0);
+        edit(
+          Rc::clone(&busy),
+          &viewer,
+          EditDataType::AllTags,
+          uuid::Uuid::new_v4(),
+        );
         return;
       }
 
       if subcommand_matches.is_present("all") {
-        edit(Rc::clone(&busy), &viewer, EditDataType::All, 0);
+        edit(
+          Rc::clone(&busy),
+          &viewer,
+          EditDataType::All,
+          uuid::Uuid::new_v4(),
+        );
         return;
       }
 
       let extract_ids_and_edit = |name: &str, edit_type: EditDataType| {
-        let item_ids: Vec<u128> = subcommand_matches.values_of_t(name).unwrap_or_default();
-        for id in item_ids {
+        let short_item_ids: Vec<String> = subcommand_matches.values_of_t(name).unwrap_or_default();
+        let ids: Vec<uuid::Uuid> = short_item_ids
+          .iter()
+          .map(|short_id| restore_id_by_short_id(Rc::clone(&busy), short_id).unwrap())
+          .collect();
+
+        for id in ids {
           edit(Rc::clone(&busy), &viewer, edit_type, id);
         }
       };
@@ -404,7 +419,7 @@ fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile,
   println!("Edit finished, data were saved");
 }
 
-fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, id: u128) {
+fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, id: uuid::Uuid) {
   let editor = get_editor();
   let mut tmp_file = tempfile::Builder::new()
     .prefix("busy_")
@@ -488,12 +503,12 @@ fn extract_tags(values_of_t: &str, command_matches: &ArgMatches) -> Vec<String> 
 fn projects_to_ids_set(
   busy: Rc<RefCell<Busy>>,
   project_names: Vec<String>,
-) -> Option<HashSet<u128>> {
+) -> Option<HashSet<uuid::Uuid>> {
   let mut project_ids = HashSet::new();
   for project_name in project_names.iter() {
     let project = busy.borrow().project_by_name(project_name);
     if project.is_some() {
-      project_ids.insert(project.unwrap().id());
+      project_ids.insert(project.unwrap().id().clone());
     }
   }
   if project_ids.is_empty() {
@@ -523,4 +538,17 @@ fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Durati
   return chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
     .checked_add(&seconds_from_midnight)
     .unwrap();
+}
+
+fn restore_id_by_short_id(busy: Rc<RefCell<Busy>>, short_id: &str) -> Result<uuid::Uuid, String> {
+  let ids = busy.borrow().ids();
+  let item = ids.iter().find(|&id| {
+    let formatted_id = format_id(id);
+    return formatted_id == short_id;
+  });
+
+  match item {
+    Some(id) => Ok(id.clone()),
+    None => Err(format!("id by short name: {} not found", short_id)),
+  }
 }

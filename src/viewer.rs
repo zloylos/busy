@@ -25,7 +25,7 @@ impl Viewer {
   }
 
   pub fn print_tag(&self, tag: &Tag) {
-    println!("id: {}, {}", tag.id(), tag.name());
+    println!("id: {}, {}", format_id(tag.id()), tag.name());
   }
 
   pub fn print_tags(&self) {
@@ -35,7 +35,7 @@ impl Viewer {
   }
 
   pub fn print_project(&self, project: &Project) {
-    println!("id: {}, {}", project.id(), project.name());
+    println!("id: {}, {}", format_id(project.id()), project.name());
   }
 
   pub fn print_projects(&self) {
@@ -47,7 +47,7 @@ impl Viewer {
   pub fn show_stat(
     &self,
     period: chrono::Duration,
-    project_ids: Option<HashSet<u128>>,
+    project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
     with_tags: bool,
   ) {
@@ -59,9 +59,9 @@ impl Viewer {
 
     for tasks in by_dates.iter() {
       self.print_date(tasks);
-      let mut project_times: BTreeMap<u128, chrono::Duration> = BTreeMap::new();
+      let mut project_times: BTreeMap<uuid::Uuid, chrono::Duration> = BTreeMap::new();
       let mut tag_times: HashMap<String, chrono::Duration> = HashMap::new();
-      let mut project_to_tags: HashMap<u128, BTreeSet<String>> = HashMap::new();
+      let mut project_to_tags: HashMap<uuid::Uuid, BTreeSet<String>> = HashMap::new();
 
       for task in tasks {
         let project_id = task.project_id();
@@ -111,7 +111,7 @@ impl Viewer {
   fn tasks_by_day(
     &self,
     period: chrono::Duration,
-    maybe_project_ids: Option<HashSet<u128>>,
+    maybe_project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
   ) -> Vec<Vec<Task>> {
     let tasks = self.busy.borrow().tasks(period);
@@ -133,7 +133,7 @@ impl Viewer {
         if !task
           .tags()
           .iter()
-          .any(|t| tags.iter().position(|tag| tag.id() == *t).is_some())
+          .any(|t| tags.iter().position(|tag| tag.id() == t).is_some())
         {
           continue;
         }
@@ -152,7 +152,7 @@ impl Viewer {
   pub fn log_tasks_list(
     &self,
     period: chrono::Duration,
-    project_ids: Option<HashSet<u128>>,
+    project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
     show_full: bool,
   ) {
@@ -191,7 +191,7 @@ impl Viewer {
     );
   }
 
-  fn get_project_name(&self, project_id: u128) -> String {
+  fn get_project_name(&self, project_id: uuid::Uuid) -> String {
     if let Some(task_project) = self.busy.borrow().project_by_id(project_id) {
       return task_project.name().to_string();
     }
@@ -224,7 +224,7 @@ impl Viewer {
       format!(
         "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:10}  [{tags}]",
         padding = " ".repeat(5),
-        task_id = task.id(),
+        task_id = format_id(task.id()),
         start_time = format_time(&first_interval.start_time).green(),
         stop_time = first_stop_time,
         duration = format_duration(task.duration()),
@@ -263,9 +263,23 @@ impl Viewer {
         );
       }
     } else if show_full {
-      println!("{}{}", " ".repeat(4 + 4 + 32), task_description);
+      const DESCRIPTION_SIZE: usize = 10;
+      println!(
+        "{}{}",
+        " ".repeat(DESCRIPTION_SIZE + 4 + 32),
+        task_description
+      );
     }
   }
+}
+
+pub fn format_id(id: &uuid::Uuid) -> String {
+  let id_string = id.as_simple().to_string();
+  format!(
+    "{}..{}",
+    &id_string[0..4],
+    &id_string[id_string.len() - 4..id_string.len()]
+  )
 }
 
 fn format_stop_time(

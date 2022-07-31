@@ -2,7 +2,7 @@ use std::io::{Seek, Write};
 
 use log::debug;
 
-use crate::{project::Project, state::State, tag::Tag, task::Task, traits::Indexable};
+use crate::{project::Project, tag::Tag, task::Task, traits::Indexable};
 
 pub struct Storage {
   tasks: StorageItem<Task>,
@@ -23,6 +23,21 @@ impl Storage {
     }
   }
 
+  pub fn ids(&self) -> Vec<uuid::Uuid> {
+    // TODO: optimize
+    let mut ids = Vec::new();
+    for task in self.tasks() {
+      ids.push(task.id().clone());
+    }
+    for project in self.projects() {
+      ids.push(project.id().clone());
+    }
+    for tag in self.tags() {
+      ids.push(tag.id().clone());
+    }
+    return ids;
+  }
+
   pub fn tasks_filepath(&self) -> &str {
     self.tasks.storage_path()
   }
@@ -31,19 +46,11 @@ impl Storage {
     self.tags.storage_path()
   }
 
-  pub fn state(&self) -> State {
-    State {
-      last_task_id: self.tasks.last_id(),
-      last_project_id: self.projects.last_id(),
-      last_tag_id: self.tags.last_id(),
-    }
-  }
-
   pub fn add_task(&mut self, task: &Task) {
     self.tasks.add(task.clone());
   }
 
-  pub fn remove_task(&mut self, task_id: u128) -> Result<(), String> {
+  pub fn remove_task(&mut self, task_id: uuid::Uuid) -> Result<(), String> {
     self.tasks.remove(task_id)
   }
 
@@ -73,7 +80,7 @@ impl Storage {
     return tags;
   }
 
-  pub fn find_tags(&self, tag_ids: &Vec<u128>) -> Vec<Tag> {
+  pub fn find_tags(&self, tag_ids: &Vec<uuid::Uuid>) -> Vec<Tag> {
     let mut tags = Vec::new();
     for tag_id in tag_ids.iter() {
       match self.tag_by_id(*tag_id) {
@@ -84,7 +91,7 @@ impl Storage {
     return tags;
   }
 
-  pub fn tag_by_id(&self, id: u128) -> Option<&Tag> {
+  pub fn tag_by_id(&self, id: uuid::Uuid) -> Option<&Tag> {
     self.tags.get_by_id(id)
   }
 
@@ -146,20 +153,12 @@ where
     return storage_item;
   }
 
-  fn last_id(&self) -> u128 {
-    let last_item = self.buffer.last();
-    if last_item.is_some() {
-      return last_item.unwrap().id();
-    }
-    return 0;
-  }
-
   fn storage_path(&self) -> &str {
     self.filepath.as_str()
   }
 
-  fn get_by_id(&self, id: u128) -> Option<&T> {
-    self.buffer.iter().find(|item| item.id() == id)
+  fn get_by_id(&self, id: uuid::Uuid) -> Option<&T> {
+    self.buffer.iter().find(|item| item.id() == &id)
   }
 
   fn restore(&mut self) {
@@ -172,7 +171,7 @@ where
     self.flush();
   }
 
-  fn remove(&mut self, id: u128) -> Result<(), String> {
+  fn remove(&mut self, id: uuid::Uuid) -> Result<(), String> {
     let position = self.position_by_id(id);
     if position.is_none() {
       return Err(format!("task with id: {} not found", id));
@@ -185,7 +184,7 @@ where
   }
 
   fn replace(&mut self, item: T) -> Result<(), String> {
-    let position = self.position_by_id(item.id());
+    let position = self.position_by_id(item.id().clone());
     if position.is_none() {
       return Err(format!("task with id: {} not found", item.id()));
     }
@@ -200,8 +199,8 @@ where
     self.buffer.clone()
   }
 
-  fn position_by_id(&self, id: u128) -> Option<usize> {
-    self.buffer.iter().position(|item| item.id() == id)
+  fn position_by_id(&self, id: uuid::Uuid) -> Option<usize> {
+    self.buffer.iter().position(|item| item.id() == &id)
   }
 
   fn flush(&mut self) {
@@ -226,25 +225,32 @@ mod test {
 
   #[derive(Clone, serde::Serialize, serde::Deserialize)]
   struct TestType {
-    id_: u128,
-    title_: String,
+    id: uuid::Uuid,
+    title: String,
   }
 
   impl TestType {
+    fn new(title: &str) -> Self {
+      Self {
+        id: uuid::Uuid::new_v4(),
+        title: title.to_string(),
+      }
+    }
+
     fn title(&self) -> &str {
-      self.title_.as_str()
+      self.title.as_str()
     }
   }
 
   impl Indexable for TestType {
-    fn id(&self) -> u128 {
-      self.id_
+    fn id(&self) -> &uuid::Uuid {
+      &self.id
     }
   }
 
   fn get_new_storage() -> StorageItem<TestType> {
     let tmp_file = tempfile::Builder::new()
-      .prefix("pomidorka")
+      .prefix("busy")
       .suffix(".json")
       .tempfile()
       .unwrap();
@@ -255,10 +261,7 @@ mod test {
   #[test]
   fn storage_item_add() {
     let mut storage = get_new_storage();
-    let new_item = TestType {
-      id_: 10,
-      title_: "Hello".to_owned(),
-    };
+    let new_item = TestType::new("Hello");
 
     storage.add(new_item);
     let all_items = storage.all();
@@ -269,13 +272,11 @@ mod test {
   #[test]
   fn storage_item_remove() {
     let mut storage = get_new_storage();
-    let new_item = TestType {
-      id_: 10,
-      title_: "Hello".to_owned(),
-    };
+    let new_item = TestType::new("Hello");
+    let id = new_item.id();
 
     storage.add(new_item);
-    storage.remove(10).unwrap();
+    storage.remove(id.clone()).unwrap();
     let all_items = storage.all();
 
     assert_eq!(all_items.is_empty(), true);
@@ -285,27 +286,24 @@ mod test {
   fn storage_item_remove_from_empty_storage() {
     let mut storage = get_new_storage();
     storage
-      .remove(10)
+      .remove(uuid::Uuid::new_v4())
       .expect_err("shouldn't remove from empty storage");
   }
 
   #[test]
   fn storage_item_replace() {
     let mut storage = get_new_storage();
-    storage.add(TestType {
-      id_: 10,
-      title_: "Hello".to_owned(),
-    });
+    let item = TestType::new("Hello");
+    let id = item.id();
+    storage.add(item);
 
-    storage
-      .replace(TestType {
-        id_: 10,
-        title_: "Hello, world".to_owned(),
-      })
-      .unwrap();
+    let new_item = TestType::new("Hello, world!");
+    new_item.id = id.clone();
+
+    storage.replace(new_item).unwrap();
 
     let all_items = storage.all();
     assert_eq!(all_items.len(), 1);
-    assert_eq!(all_items[0].title(), "Hello, world");
+    assert_eq!(all_items[0].title(), "Hello, world!");
   }
 }

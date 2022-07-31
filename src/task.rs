@@ -8,62 +8,62 @@ pub struct DateTimeInterval {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
-  id_: u128,
-  project_id_: u128,
-  times_: Vec<DateTimeInterval>,
-  title_: String,
-  tags_: Vec<u128>,
-  is_paused_: bool,
+  id: uuid::Uuid,
+  project_id: uuid::Uuid,
+  times: Vec<DateTimeInterval>,
+  title: String,
+  tags: Vec<uuid::Uuid>,
+  is_paused: bool,
 }
 
 impl Indexable for Task {
-  fn id(&self) -> u128 {
-    self.id_
+  fn id(&self) -> &uuid::Uuid {
+    &self.id
   }
 }
 
 impl Task {
-  pub fn new(id: u128, project_id: u128, title: &str, tags: Vec<u128>) -> Self {
+  pub fn new(project_id: &uuid::Uuid, title: &str, tags: Vec<uuid::Uuid>) -> Self {
     Self {
-      id_: id,
-      project_id_: project_id,
-      times_: vec![DateTimeInterval {
+      id: uuid::Uuid::new_v4(),
+      project_id: project_id.clone(),
+      times: vec![DateTimeInterval {
         start_time: chrono::Local::now(),
         stop_time: None,
       }],
-      title_: title.to_owned(),
-      tags_: tags,
-      is_paused_: false,
+      title: title.to_owned(),
+      tags,
+      is_paused: false,
     }
   }
 
-  pub fn project_id(&self) -> u128 {
-    self.project_id_
+  pub fn project_id(&self) -> uuid::Uuid {
+    self.project_id
   }
 
   pub fn title(&self) -> &str {
-    self.title_.as_str()
+    self.title.as_str()
   }
 
-  pub fn tags(&self) -> &Vec<u128> {
-    &self.tags_
+  pub fn tags(&self) -> &Vec<uuid::Uuid> {
+    &self.tags
   }
 
   pub fn times(&self) -> &Vec<DateTimeInterval> {
-    &self.times_
+    &self.times
   }
 
   pub fn start_time(&self) -> chrono::DateTime<chrono::Local> {
-    self.times_.first().unwrap().start_time
+    self.times.first().unwrap().start_time
   }
 
   pub fn stop_time(&self) -> Option<chrono::DateTime<chrono::Local>> {
-    self.times_.last().unwrap().stop_time
+    self.times.last().unwrap().stop_time
   }
 
   pub fn duration(&self) -> chrono::Duration {
     let mut total_duration = chrono::Duration::zero();
-    for interval in self.times_.iter() {
+    for interval in self.times.iter() {
       let stop_time = interval.stop_time.unwrap_or(chrono::Local::now());
       total_duration = total_duration
         .checked_add(&stop_time.signed_duration_since(interval.start_time))
@@ -73,32 +73,32 @@ impl Task {
   }
 
   pub fn stop(&mut self) {
-    self.times_.last_mut().unwrap().stop_time = Some(chrono::Local::now());
-    self.is_paused_ = false;
+    self.times.last_mut().unwrap().stop_time = Some(chrono::Local::now());
+    self.is_paused = false;
   }
 
   pub fn is_paused(&self) -> bool {
-    self.is_paused_
+    self.is_paused
   }
 
   pub fn pause(&mut self) {
     self.stop();
-    self.is_paused_ = true;
+    self.is_paused = true;
   }
 
   pub fn resume(&mut self) {
-    self.times_.push(DateTimeInterval {
+    self.times.push(DateTimeInterval {
       start_time: chrono::Local::now(),
       stop_time: None,
     });
-    self.is_paused_ = false;
+    self.is_paused = false;
   }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TaskView {
-  id: u128,
-  project_id: u128,
+  id: uuid::Uuid,
+  project_id: uuid::Uuid,
   times: Vec<DateTimeInterval>,
   title: String,
   tags: Vec<String>,
@@ -108,7 +108,7 @@ pub struct TaskView {
 impl TaskView {
   pub fn from_task(task: &Task, all_tags: &Vec<Tag>) -> Self {
     TaskView {
-      id: task.id(),
+      id: task.id().clone(),
       project_id: task.project_id(),
       times: task.times().clone(),
       title: task.title().to_owned(),
@@ -131,17 +131,17 @@ impl TaskView {
           .iter()
           .find(|t| t.name() == tag_name)
           .expect("add new tags unsupported yet");
-        return found_tag.id();
+        return found_tag.id().clone();
       })
       .collect();
 
     Task {
-      id_: self.id,
-      project_id_: self.project_id,
-      times_: self.times.clone(),
-      title_: self.title.clone(),
-      tags_: tag_ids,
-      is_paused_: self.is_paused,
+      id: self.id,
+      project_id: self.project_id,
+      times: self.times.clone(),
+      title: self.title.clone(),
+      tags: tag_ids,
+      is_paused: self.is_paused,
     }
   }
 }

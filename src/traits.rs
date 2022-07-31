@@ -1,3 +1,3 @@
 pub trait Indexable {
-  fn id(&self) -> u128;
+  fn id(&self) -> &uuid::Uuid;
 }
