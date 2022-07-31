@@ -48,6 +48,21 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
     .subcommand(clap::Command::new("status").about("show active task if exists"))
     .subcommand(clap::Command::new("stop").about("stop current task"))
     .subcommand(
+      clap::Command::new("today")
+        .about("show today tasks, shortcut for `log --today`")
+        .args(&[
+          clap::Arg::new("full").long("full"),
+          clap::Arg::new("project")
+            .long("project")
+            .multiple_values(true)
+            .takes_value(true),
+          clap::Arg::new("tag")
+            .long("tag")
+            .multiple_values(true)
+            .takes_value(true),
+        ]),
+    )
+    .subcommand(
       clap::Command::new("log").about("print last tasks").args(&[
         clap::Arg::new("days").long("days").takes_value(true),
         clap::Arg::new("full").long("full"),
@@ -89,6 +104,7 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
     .subcommand(
       clap::Command::new("edit").args(&[
         clap::Arg::new("all").long("all").short('a'),
+        clap::Arg::new("all-tags").long("all-tags"),
         clap::Arg::new("task-id")
           .long("task")
           .multiple_occurrences(true)
@@ -184,6 +200,22 @@ fn main() {
       viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
     }
 
+    Some("today") => {
+      clear_screen();
+      let subcommand_matches = matches.subcommand_matches("today").unwrap();
+      let show_full = subcommand_matches.is_present("full");
+      let project_names = subcommand_matches
+        .values_of_t("project")
+        .ok()
+        .unwrap_or_default();
+      let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let tags = extract_tags("tag", subcommand_matches);
+      let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+
+      let period = get_period(None, true);
+      viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
+    }
+
     Some("stat") => {
       clear_screen();
       let subcommand_matches = matches.subcommand_matches("stat").unwrap();
@@ -218,6 +250,12 @@ fn main() {
 
     Some("edit") => {
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
+
+      if subcommand_matches.is_present("all-tags") {
+        edit(Rc::clone(&pomidorka), &viewer, EditDataType::AllTags, 0);
+        return;
+      }
+
       if subcommand_matches.is_present("all") {
         edit(Rc::clone(&pomidorka), &viewer, EditDataType::All, 0);
         return;
@@ -248,6 +286,7 @@ enum EditDataType {
   Task,
   Project,
   Tag,
+  AllTags,
   All,
 }
 
@@ -328,6 +367,25 @@ fn edit(
       pomidorka.borrow_mut().replace_tag(updated_tag).unwrap();
     }
 
+    EditDataType::AllTags => {
+      let filepath = pomidorka.borrow().tags_db_filepath().to_string();
+      let mut tags_db_file = std::fs::File::options()
+        .write(true)
+        .read(true)
+        .open(&filepath)
+        .unwrap();
+
+      let all_tags: serde_json::Value = serde_json::from_reader(&tags_db_file).unwrap();
+
+      tags_db_file.rewind().unwrap();
+      tags_db_file.set_len(0).unwrap();
+
+      let edited_tags = run_edit_and_get_result(&all_tags, &mut tmp_file, &editor);
+      serde_json::to_writer(&tags_db_file, &edited_tags).unwrap();
+
+      println!("Edit finished, tags were saved");
+    }
+
     EditDataType::All => {
       let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
       let mut tasks_db_file = std::fs::File::options()
@@ -344,7 +402,7 @@ fn edit(
       let edited_tasks = run_edit_and_get_result(&all_tasks, &mut tmp_file, &editor);
       serde_json::to_writer(&tasks_db_file, &edited_tasks).unwrap();
 
-      println!("Edit finished, file saved");
+      println!("Edit finished, tasks were saved");
     }
   };
 }
