@@ -74,6 +74,7 @@ impl Task {
 
   pub fn stop(&mut self) {
     self.times_.last_mut().unwrap().stop_time = Some(chrono::Local::now());
+    self.is_paused_ = false;
   }
 
   pub fn is_paused(&self) -> bool {
