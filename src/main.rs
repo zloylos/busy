@@ -3,7 +3,7 @@ extern crate colored;
 extern crate serde;
 extern crate serde_json;
 
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, io, rc::Rc};
 
 use chrono::{Datelike, Timelike};
 use viewer::Viewer;
@@ -18,9 +18,10 @@ mod storage;
 mod task;
 mod viewer;
 
-fn main() {
-  let matches = clap::Command::new("Pomidorka")
+fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
+  clap::Command::new("pomidorka")
     .arg_required_else_help(true)
+    .trailing_var_arg(true)
     .subcommand(clap::Command::new("start").args(&[
       clap::Arg::new("project_name").required(true).index(1),
       clap::Arg::new("task_title").required(true).index(2),
@@ -59,11 +60,15 @@ fn main() {
     )
     .subcommand(clap::Command::new("projects"))
     .subcommand(clap::Command::new("edit"))
-    .get_matches();
+}
 
+fn main() {
   let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
-  let viewer = Viewer::new(Rc::clone(&pomidorka));
 
+  let cmd = build_cli(Rc::clone(&pomidorka));
+  let matches = cmd.get_matches();
+
+  let viewer = Viewer::new(Rc::clone(&pomidorka));
   match matches.subcommand_name() {
     Some("projects") => {
       clear_screen();
@@ -184,17 +189,23 @@ fn projects_to_ids_set(
 }
 
 fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Duration {
+  let seconds_from_midnight = chrono::Duration::seconds(
+    chrono::Local::now()
+      .time()
+      .num_seconds_from_midnight()
+      .into(),
+  );
+
   if period_days.is_some() {
-    return chrono::Duration::days(period_days.unwrap());
+    return chrono::Duration::days(period_days.unwrap())
+      .checked_add(&seconds_from_midnight)
+      .unwrap();
   }
 
   return match show_today_only {
-    true => chrono::Duration::seconds(
-      chrono::Local::now()
-        .time()
-        .num_seconds_from_midnight()
-        .into(),
-    ),
-    false => chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64),
+    true => seconds_from_midnight,
+    false => chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
+      .checked_add(&seconds_from_midnight)
+      .unwrap(),
   };
 }
