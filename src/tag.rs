@@ -1,18 +1,18 @@
 use crate::traits::Indexable;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Project {
+pub struct Tag {
   id_: u128,
   name_: String,
 }
 
-impl Indexable for Project {
+impl Indexable for Tag {
   fn id(&self) -> u128 {
     self.id_
   }
 }
 
-impl Project {
+impl Tag {
   pub fn new(id: u128, name: &str) -> Self {
     Self {
       id_: id,

@@ -10,6 +10,7 @@ use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   pomidorka::Pomidorka,
   task::{self, Task},
+  traits::Indexable,
 };
 
 pub struct Viewer {

@@ -1,4 +1,4 @@
-use crate::{project::Project, storage::Storage, task::Task};
+use crate::{project::Project, storage::Storage, task::Task, traits::Indexable};
 
 pub struct Pomidorka {
   storage_: Storage,
@@ -11,13 +11,14 @@ impl Pomidorka {
     let home_dir = std::env!("HOME");
     let default_database_path = std::path::Path::new(home_dir).join(".pomidorka");
     let _ = std::fs::create_dir_all(&default_database_path);
-    let mut storage = Storage::new(
+    let storage = Storage::new(
       default_database_path
         .canonicalize()
         .unwrap()
         .to_str()
         .unwrap(),
     );
+
     let tasks = storage.tasks();
     let projects = storage.projects();
 
@@ -65,13 +66,9 @@ impl Pomidorka {
   }
 
   pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
-    match self.storage_.replace_task(task) {
-      Ok(_) => {
-        self.tasks_ = self.storage_.tasks();
-        return Ok(());
-      }
-      Err(e) => Err(e),
-    }
+    self.storage_.replace_task(task);
+    self.tasks_ = self.storage_.tasks();
+    return Ok(());
   }
 
   pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {

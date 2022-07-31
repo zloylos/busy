@@ -11,6 +11,7 @@ use std::{
 };
 
 use chrono::{Datelike, Timelike};
+use traits::Indexable;
 use viewer::Viewer;
 
 use crate::{pomidorka::Pomidorka, task::Task};
@@ -20,7 +21,9 @@ mod pomidorka;
 mod project;
 mod state;
 mod storage;
+mod tag;
 mod task;
+mod traits;
 mod viewer;
 
 fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {

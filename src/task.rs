@@ -1,3 +1,5 @@
+use crate::traits::Indexable;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
   id_: u128,
@@ -6,6 +8,12 @@ pub struct Task {
   stop_time_: Option<chrono::DateTime<chrono::Local>>,
   title_: String,
   tags_: Vec<String>,
+}
+
+impl Indexable for Task {
+  fn id(&self) -> u128 {
+    self.id_
+  }
 }
 
 impl Task {
@@ -18,10 +26,6 @@ impl Task {
       title_: title.to_owned(),
       tags_: tags,
     }
-  }
-
-  pub fn id(&self) -> u128 {
-    self.id_
   }
 
   pub fn project_id(&self) -> u128 {
