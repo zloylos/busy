@@ -4,14 +4,14 @@ use std::{
   rc::Rc,
 };
 
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 
 use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   pomidorka::Pomidorka,
   project::Project,
   tag::Tag,
-  task::{self, Task},
+  task::{self, DateTimeInterval, Task},
   traits::Indexable,
 };
 
@@ -199,18 +199,6 @@ impl Viewer {
   }
 
   pub fn log_task(&self, task: &task::Task, show_full: bool) {
-    let stop_time = task.stop_time();
-    let stop_time_msg = stop_time
-      .unwrap_or(chrono::Local::now())
-      .naive_local()
-      .format("%H:%M")
-      .to_string();
-
-    let colored_stop_time_msg = match stop_time.is_some() {
-      true => stop_time_msg.green(),
-      false => stop_time_msg.yellow(),
-    };
-
     let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
     let tags: Vec<String> = task_tags
       .iter()
@@ -219,30 +207,102 @@ impl Viewer {
 
     let tags_str = tags.join(", ");
 
+    let first_interval = task.times().first().unwrap();
+    let first_stop_time = match task.times().len() > 1 {
+      true => format_time(&first_interval.stop_time.unwrap()),
+      false => format_stop_time(task, first_interval.stop_time),
+    };
+
+    let project_name = self.get_project_name(task.project_id());
+    let mut project_name_msg = project_name.as_str().red();
+    if task.is_paused() {
+      project_name_msg = (project_name + " [paused]").yellow();
+    }
+
     println!(
       "{}",
       format!(
-        "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:8}  [{tags}]",
+        "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:10}  [{tags}]",
         padding = " ".repeat(5),
         task_id = task.id(),
-        start_time = task
-          .start_time()
-          .naive_local()
-          .format("%H:%M")
-          .to_string()
-          .green(),
-        stop_time = colored_stop_time_msg,
+        start_time = format_time(&first_interval.start_time).green(),
+        stop_time = first_stop_time,
         duration = format_duration(task.duration()),
-        project = self.get_project_name(task.project_id()).as_str().red(),
+        project = project_name_msg,
         tags = tags_str.italic()
       )
     );
-    if show_full {
-      println!(
-        "{}{}",
-        " ".repeat(4 + 4 + 32),
-        task.title().dimmed().italic()
-      );
+
+    let task_description = task.title().dimmed().italic();
+    if task.times().len() > 1 {
+      let mut task_description_printed = !show_full;
+
+      let mut time_iter = task.times().iter().skip(1);
+      let last_interval = time_iter.next_back();
+
+      for time_interval in time_iter {
+        print_time_interval(
+          time_interval,
+          Some(format_time(&time_interval.stop_time.unwrap())),
+          match task_description_printed {
+            true => None,
+            false => Some(task_description.clone()),
+          },
+        );
+        task_description_printed = true;
+      }
+
+      if let Some(last_interval) = last_interval {
+        print_time_interval(
+          last_interval,
+          Some(format_stop_time(task, last_interval.stop_time)),
+          match task_description_printed {
+            true => None,
+            false => Some(task_description.clone()),
+          },
+        );
+        println!();
+      }
+    } else if show_full {
+      println!("{}{}", " ".repeat(4 + 4 + 32), task_description);
     }
   }
+}
+
+fn format_stop_time(
+  task: &Task,
+  stop_time: Option<chrono::DateTime<chrono::Local>>,
+) -> ColoredString {
+  let stop_time_msg = format_time(&stop_time.unwrap_or(chrono::Local::now()));
+  if stop_time.is_some() {
+    if task.is_paused() {
+      return stop_time_msg.bold().italic().bright_red();
+    }
+    return stop_time_msg.green();
+  }
+  return stop_time_msg.yellow();
+}
+
+fn format_time(time: &chrono::DateTime<chrono::Local>) -> ColoredString {
+  return time.naive_local().format("%H:%M").to_string().black();
+}
+
+fn print_time_interval(
+  time_interval: &DateTimeInterval,
+  stop_time_formatted: Option<ColoredString>,
+  task_description: Option<ColoredString>,
+) {
+  println!(
+    "{}",
+    format!(
+      "{padding}  {start_time} to {stop_time} {task_description_padding} {task_description}",
+      padding = " ".repeat(5 + 4),
+      start_time = format_time(&time_interval.start_time),
+      stop_time = stop_time_formatted.unwrap_or(format_time(
+        &time_interval.stop_time.unwrap_or(chrono::Local::now())
+      )),
+      task_description_padding = " ".repeat(13),
+      task_description = task_description.unwrap_or_default()
+    )
+  );
 }

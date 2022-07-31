@@ -51,6 +51,8 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
         .about("show active task if exists"),
     )
     .subcommand(clap::Command::new("stop").about("stop current task"))
+    .subcommand(clap::Command::new("pause").about("pause current task"))
+    .subcommand(clap::Command::new("continue").about("continue current task"))
     .subcommand(
       clap::Command::new("today")
         .alias("td")
@@ -183,6 +185,28 @@ fn main() {
           viewer.log_task(&task, true);
         }
         Err(err) => println!("couldn't stop: {}", err),
+      };
+    }
+
+    Some("pause") => {
+      let paused_task_result = { pomidorka.borrow_mut().pause() };
+      match paused_task_result {
+        Ok(task) => {
+          println!("Task paused:");
+          viewer.log_task(&task, true);
+        }
+        Err(err) => println!("couldn't pause: {}", err),
+      };
+    }
+
+    Some("continue") => {
+      let unpaused_task_result = { pomidorka.borrow_mut().unpause() };
+      match unpaused_task_result {
+        Ok(task) => {
+          println!("Task continued:");
+          viewer.log_task(&task, true);
+        }
+        Err(err) => println!("couldn't continue: {}", err),
       };
     }
 

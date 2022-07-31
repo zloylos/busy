@@ -74,18 +74,50 @@ impl Pomidorka {
   }
 
   pub fn stop(&mut self) -> Result<Task, String> {
-    let mut tasks = self.storage_.tasks();
-    let active_task_opt = tasks.iter_mut().find(|t| t.stop_time().is_none());
-
-    if active_task_opt.is_none() {
-      return Err("active task not found, start it firstly".to_string());
+    let maybe_active_task = self.active_task();
+    if maybe_active_task.is_none() {
+      return Err("there is no active task to stop".to_owned());
     }
 
-    let active_task = active_task_opt.unwrap();
+    let mut active_task = maybe_active_task.unwrap();
     active_task.stop();
 
     match self.storage_.replace_task(active_task.clone()) {
-      Ok(_) => Ok(active_task.clone()),
+      Ok(_) => Ok(active_task),
+      Err(err) => Err(err),
+    }
+  }
+
+  pub fn pause(&mut self) -> Result<Task, String> {
+    let maybe_active_task = self.active_task();
+    if maybe_active_task.is_none() {
+      return Err("there is no active task to pause".to_owned());
+    }
+
+    let mut active_task = maybe_active_task.unwrap();
+    active_task.pause();
+
+    match self.storage_.replace_task(active_task.clone()) {
+      Ok(_) => Ok(active_task),
+      Err(err) => Err(err),
+    }
+  }
+
+  pub fn unpause(&mut self) -> Result<Task, String> {
+    const ERR_MSG: &str = "there is no paused task to continue";
+
+    let maybe_active_task = self.active_task();
+    if maybe_active_task.is_none() {
+      return Err(ERR_MSG.to_owned());
+    }
+
+    let mut active_task = maybe_active_task.unwrap();
+    if active_task.stop_time().is_none() {
+      return Err(ERR_MSG.to_owned());
+    }
+    active_task.unpause();
+    match self.storage_.replace_task(active_task.clone()) {
+      Ok(_) => Ok(active_task),
       Err(err) => Err(err),
     }
   }
@@ -124,7 +156,9 @@ impl Pomidorka {
 
   pub fn active_task(&self) -> Option<Task> {
     let tasks = self.storage_.tasks();
-    let found_task = tasks.iter().find(|t| t.stop_time().is_none());
+    let found_task = tasks
+      .iter()
+      .find(|t| t.stop_time().is_none() || t.is_paused());
     match found_task {
       Some(task) => Some(task.clone()),
       None => None,

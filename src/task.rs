@@ -1,13 +1,19 @@
 use crate::{tag::Tag, traits::Indexable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DateTimeInterval {
+  pub start_time: chrono::DateTime<chrono::Local>,
+  pub stop_time: Option<chrono::DateTime<chrono::Local>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
   id_: u128,
   project_id_: u128,
-  start_time_: chrono::DateTime<chrono::Local>,
-  stop_time_: Option<chrono::DateTime<chrono::Local>>,
+  times_: Vec<DateTimeInterval>,
   title_: String,
   tags_: Vec<u128>,
+  is_paused_: bool,
 }
 
 impl Indexable for Task {
@@ -21,10 +27,13 @@ impl Task {
     Self {
       id_: id,
       project_id_: project_id,
-      start_time_: chrono::Local::now(),
-      stop_time_: None,
+      times_: vec![DateTimeInterval {
+        start_time: chrono::Local::now(),
+        stop_time: None,
+      }],
       title_: title.to_owned(),
       tags_: tags,
+      is_paused_: false,
     }
   }
 
@@ -40,21 +49,48 @@ impl Task {
     &self.tags_
   }
 
+  pub fn times(&self) -> &Vec<DateTimeInterval> {
+    &self.times_
+  }
+
   pub fn start_time(&self) -> chrono::DateTime<chrono::Local> {
-    self.start_time_
+    self.times_.first().unwrap().start_time
   }
 
   pub fn stop_time(&self) -> Option<chrono::DateTime<chrono::Local>> {
-    self.stop_time_
+    self.times_.last().unwrap().stop_time
   }
 
   pub fn duration(&self) -> chrono::Duration {
-    let stop_time = self.stop_time_.unwrap_or(chrono::Local::now());
-    return stop_time.signed_duration_since(self.start_time_);
+    let mut total_duration = chrono::Duration::zero();
+    for interval in self.times_.iter() {
+      let stop_time = interval.stop_time.unwrap_or(chrono::Local::now());
+      total_duration = total_duration
+        .checked_add(&stop_time.signed_duration_since(interval.start_time))
+        .unwrap();
+    }
+    return total_duration;
   }
 
   pub fn stop(&mut self) {
-    self.stop_time_ = Some(chrono::Local::now());
+    self.times_.last_mut().unwrap().stop_time = Some(chrono::Local::now());
+  }
+
+  pub fn is_paused(&self) -> bool {
+    self.is_paused_
+  }
+
+  pub fn pause(&mut self) {
+    self.stop();
+    self.is_paused_ = true;
+  }
+
+  pub fn unpause(&mut self) {
+    self.times_.push(DateTimeInterval {
+      start_time: chrono::Local::now(),
+      stop_time: None,
+    });
+    self.is_paused_ = false;
   }
 }
 
@@ -62,10 +98,10 @@ impl Task {
 pub struct TaskView {
   id: u128,
   project_id: u128,
-  start_time: chrono::DateTime<chrono::Local>,
-  stop_time: Option<chrono::DateTime<chrono::Local>>,
+  times: Vec<DateTimeInterval>,
   title: String,
   tags: Vec<String>,
+  is_paused: bool,
 }
 
 impl TaskView {
@@ -73,14 +109,14 @@ impl TaskView {
     TaskView {
       id: task.id(),
       project_id: task.project_id(),
-      start_time: task.start_time(),
-      stop_time: task.stop_time(),
+      times: task.times().clone(),
       title: task.title().to_owned(),
       tags: all_tags
         .iter()
         .filter(|tag| task.tags().contains(&tag.id()))
         .map(|tag| tag.name().to_owned())
         .collect(),
+      is_paused: task.is_paused(),
     }
   }
 
@@ -101,10 +137,10 @@ impl TaskView {
     Task {
       id_: self.id,
       project_id_: self.project_id,
-      start_time_: self.start_time,
-      stop_time_: self.stop_time,
+      times_: self.times.clone(),
       title_: self.title.clone(),
       tags_: tag_ids,
+      is_paused_: self.is_paused,
     }
   }
 }
