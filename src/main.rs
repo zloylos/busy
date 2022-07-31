@@ -61,7 +61,7 @@ fn build_cli() -> Command<'static> {
         ]),
     )
     .subcommand(Command::new("pause").about("pause the current task"))
-    .subcommand(Command::new("resume ").about("resume the current task"))
+    .subcommand(Command::new("resume").about("resume the current task"))
     .subcommand(
       Command::new("today")
         .alias("td")
