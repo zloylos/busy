@@ -60,8 +60,8 @@ fn build_cli() -> Command<'static> {
           Arg::new("pull-force").long("pull-force"),
         ]),
     )
-    .subcommand(Command::new("pause").about("pause current task"))
-    .subcommand(Command::new("continue").about("continue current task"))
+    .subcommand(Command::new("pause").about("pause the current task"))
+    .subcommand(Command::new("resume ").about("resume the current task"))
     .subcommand(
       Command::new("today")
         .alias("td")
@@ -242,14 +242,14 @@ fn main() {
       };
     }
 
-    Some("continue") => {
-      let unpaused_task_result = { pomidorka.borrow_mut().unpause() };
+    Some("resume") => {
+      let unpaused_task_result = { pomidorka.borrow_mut().resume() };
       match unpaused_task_result {
         Ok(task) => {
-          println!("Task continued:");
+          println!("Task resumed:");
           viewer.log_task(&task, true);
         }
-        Err(err) => println!("couldn't continue: {}", err),
+        Err(err) => println!("couldn't resume: {}", err),
       };
     }
 

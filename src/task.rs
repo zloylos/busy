@@ -86,7 +86,7 @@ impl Task {
     self.is_paused_ = true;
   }
 
-  pub fn unpause(&mut self) {
+  pub fn resume(&mut self) {
     self.times_.push(DateTimeInterval {
       start_time: chrono::Local::now(),
       stop_time: None,

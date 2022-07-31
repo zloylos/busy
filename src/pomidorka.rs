@@ -121,7 +121,10 @@ impl Pomidorka {
     );
     self.storage_.add_task(&task);
 
-    self.syncer_.commit(&format_task_commit("started", &task)).unwrap();
+    self
+      .syncer_
+      .commit(&format_task_commit("started", &task))
+      .unwrap();
 
     return Ok(task);
   }
@@ -139,7 +142,8 @@ impl Pomidorka {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("stopped", &active_task)).unwrap();
+          .commit(&format_task_commit("stopped", &active_task))
+          .unwrap();
 
         Ok(active_task)
       }
@@ -160,7 +164,8 @@ impl Pomidorka {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("paused", &active_task)).unwrap();
+          .commit(&format_task_commit("paused", &active_task))
+          .unwrap();
 
         Ok(active_task)
       }
@@ -168,7 +173,7 @@ impl Pomidorka {
     }
   }
 
-  pub fn unpause(&mut self) -> Result<Task, String> {
+  pub fn resume(&mut self) -> Result<Task, String> {
     const ERR_MSG: &str = "there is no paused task to continue";
 
     let maybe_active_task = self.active_task();
@@ -180,12 +185,13 @@ impl Pomidorka {
     if active_task.stop_time().is_none() {
       return Err(ERR_MSG.to_owned());
     }
-    active_task.unpause();
+    active_task.resume();
     match self.storage_.replace_task(active_task.clone()) {
       Ok(_) => {
         self
           .syncer_
-          .commit(&format_task_commit("unpaused", &active_task)).unwrap();
+          .commit(&format_task_commit("continue", &active_task))
+          .unwrap();
 
         Ok(active_task)
       }
