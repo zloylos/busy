@@ -1,10 +1,10 @@
 use std::io::{BufRead, BufReader, Read, Seek, Write};
 
-use crate::{category::Category, state::State, task::Task};
+use crate::{project::Project, state::State, task::Task};
 
 pub struct Storage {
   tasks_file_: std::fs::File,
-  categories_file_: std::fs::File,
+  projects_file_: std::fs::File,
   state_file_: std::fs::File,
   state_: State,
 }
@@ -22,7 +22,7 @@ impl Storage {
     let state = Self::restore_state(&mut state_file);
     Self {
       tasks_file_: Storage::open_file(database_dir_path, "tasks.json"),
-      categories_file_: Storage::open_file(database_dir_path, "categories.json"),
+      projects_file_: Storage::open_file(database_dir_path, "projects.json"),
       state_file_: state_file,
       state_: state,
     }
@@ -61,25 +61,25 @@ impl Storage {
     return tasks;
   }
 
-  pub fn add_category(&mut self, category: &Category) {
-    let category_str = serde_json::to_string(category).unwrap();
+  pub fn add_project(&mut self, project: &Project) {
+    let project_str = serde_json::to_string(project).unwrap();
     self
-      .categories_file_
-      .write_all((category_str + "\n").as_bytes())
+      .projects_file_
+      .write_all((project_str + "\n").as_bytes())
       .unwrap();
 
-    self.state_.last_category_id = category.id();
+    self.state_.last_project_id = project.id();
     self.save_state();
   }
 
-  pub fn categories(&mut self) -> Vec<Category> {
-    self.categories_file_.rewind().unwrap();
-    let mut categories = Vec::new();
-    for line in BufReader::new(&self.categories_file_).lines() {
-      let category: Category = serde_json::from_str(line.unwrap().as_str()).unwrap();
-      categories.push(category);
+  pub fn projects(&mut self) -> Vec<Project> {
+    self.projects_file_.rewind().unwrap();
+    let mut projects = Vec::new();
+    for line in BufReader::new(&self.projects_file_).lines() {
+      let project: Project = serde_json::from_str(line.unwrap().as_str()).unwrap();
+      projects.push(project);
     }
-    return categories;
+    return projects;
   }
 
   fn rewrite_tasks(&mut self, tasks: Vec<Task>) {

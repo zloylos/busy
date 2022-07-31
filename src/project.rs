@@ -1,12 +1,10 @@
-use serde;
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Category {
+pub struct Project {
   id_: u128,
   name_: String,
 }
 
-impl Category {
+impl Project {
   pub fn new(id: u128, name: &str) -> Self {
     Self {
       id_: id,

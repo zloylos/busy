@@ -1,212 +1,153 @@
 extern crate chrono;
+extern crate colored;
 extern crate serde;
 extern crate serde_json;
 
-use crate::pomidorka::Pomidorka;
-use chrono::Datelike;
-use clap::App;
+use colored::*;
 
-mod category;
+use crate::{duration_fmt::format_duration, pomidorka::Pomidorka};
+
+mod duration_fmt;
 mod pomidorka;
+mod project;
 mod state;
 mod storage;
 mod task;
 
 fn main() {
-  let matches = App::new("Pomidorka")
+  let matches = clap::App::new("Pomidorka")
     .subcommand(
-      clap::App::new("categories")
-        .subcommand(
-          clap::App::new("add").arg(
-            clap::Arg::new("name")
-              .about("category name")
-              .required(true)
-              .index(1),
-          ),
-        )
-        .subcommand(clap::App::new("list")),
+      clap::App::new("start")
+        .arg(clap::Arg::new("project_name").required(true).index(1))
+        .arg(clap::Arg::new("task_title").required(true).index(2))
+        .arg(clap::Arg::new("tags").index(3).multiple_values(true)),
     )
-    .subcommand(
-      clap::App::new("tasks")
-        .subcommand(
-          clap::App::new("list")
-            .arg(clap::Arg::new("active_only").long("active-only").short('a'))
-            .arg(
-              clap::Arg::new("period")
-                .about("Period in days")
-                .default_value("7"),
-            ),
-        )
-        .subcommand(
-          clap::App::new("add")
-            .arg(
-              clap::Arg::new("title")
-                .about("task title")
-                .required(true)
-                .index(1),
-            )
-            .arg(
-              clap::Arg::new("category")
-                .long("category")
-                .short('c')
-                .default_value("0"),
-            ),
-        )
-        .subcommand(clap::App::new("remove").arg(clap::Arg::new("task_id").required(true).index(1)))
-        .subcommand(clap::App::new("stop").arg(clap::Arg::new("task_id").required(true).index(1))),
-    )
+    .subcommand(clap::App::new("stop"))
+    .subcommand(clap::App::new("log").arg(clap::Arg::new("full").long("full")))
+    .subcommand(clap::App::new("projects"))
     .get_matches();
 
   let mut pomidorka = Pomidorka::new();
   match matches.subcommand_name() {
-    Some("categories") => {
-      let categories_subcommand_matches = matches.subcommand_matches("categories").unwrap();
-      match categories_subcommand_matches.subcommand_name() {
-        Some("add") => {
-          let category_name = categories_subcommand_matches
-            .subcommand_matches("add")
-            .unwrap()
-            .value_of("name")
-            .unwrap();
-
-          pomidorka.add_category(category_name);
-          println!("category added, list of categories: ");
-          print_categories(&pomidorka);
-        }
-
-        Some("list") => {
-          print_categories(&pomidorka);
-        }
-
-        Some(subcmd) => println!("unknown task subcommand {}", subcmd),
-
-        None => print_categories(&pomidorka),
-      }
+    Some("projects") => {
+      print_projects(&pomidorka);
     }
 
-    Some("tasks") => {
-      let tasks_subcommand_matches = matches.subcommand_matches("tasks").unwrap();
-      match tasks_subcommand_matches.subcommand_name() {
-        Some("add") => {
-          let add_matches = tasks_subcommand_matches.subcommand_matches("add").unwrap();
-          let title = add_matches.value_of("title").unwrap();
-          let category_id: u128 = add_matches.value_of_t("category").unwrap();
+    Some("start") => {
+      let command_matches = matches.subcommand_matches("start").unwrap();
+      let project_name = command_matches.value_of("project_name").unwrap();
+      let task_title = command_matches.value_of("task_title").unwrap();
+      let tags: Vec<String> = command_matches
+        .values_of_t("tags")
+        .unwrap()
+        .iter_mut()
+        .map(|tag: &mut String| tag.strip_prefix("+").unwrap().to_string())
+        .collect();
 
-          println!(
-            "add task with category id: {} / {}",
-            category_id,
-            pomidorka.category_by_id(category_id).unwrap().name()
-          );
-
-          pomidorka.add_task(category_id, title);
-          println!("task added, list of tasks: ");
-          print_tasks_list(&pomidorka, true, None);
+      match pomidorka.start(project_name, task_title, tags) {
+        Ok(task) => {
+          println!("task started: ");
+          log_task(&task, project_name, true);
         }
-
-        Some("remove") => {
-          let task_id_str = tasks_subcommand_matches
-            .subcommand_matches("remove")
-            .unwrap()
-            .value_of("task_id")
-            .unwrap();
-
-          match pomidorka.remove_task(task_id_str.parse().unwrap()) {
-            Ok(_) => println!("task removed"),
-            Err(e) => println!("task remove err: {}", e),
-          };
-        }
-
-        Some("stop") => {
-          let task_id: u128 = tasks_subcommand_matches
-            .subcommand_matches("stop")
-            .unwrap()
-            .value_of_t("task_id")
-            .unwrap();
-
-          match pomidorka.stop_task(task_id) {
-            Ok(_) => println!("task stopped"),
-            Err(e) => println!("task stop err: {}", e),
-          };
-        }
-
-        Some("list") => {
-          let list_matches = tasks_subcommand_matches.subcommand_matches("list").unwrap();
-          let only_active_flag = list_matches.is_present("active_only");
-          let period: i64 = list_matches.value_of_t("period").unwrap();
-          print_tasks_list(
-            &pomidorka,
-            only_active_flag,
-            Some(chrono::Duration::days(period)),
-          );
-        }
-
-        Some(subcmd) => println!("unknown task subcommand {}", subcmd),
-
-        None => print_tasks_list(&pomidorka, false, Some(chrono::Duration::days(7))),
+        Err(err) => println!("start task err: {}", err),
       };
     }
+
+    Some("stop") => {
+      match pomidorka.stop() {
+        Ok(task) => {
+          println!("task stopped:");
+          log_task(
+            &task,
+            pomidorka.project_by_id(task.project_id()).unwrap().name(),
+            true,
+          );
+        }
+        Err(err) => println!("couldn't stop: {}", err),
+      };
+    }
+
+    Some("log") => {
+      let full = matches
+        .subcommand_matches("log")
+        .unwrap()
+        .is_present("full");
+      log_tasks_list(&pomidorka, Some(chrono::Duration::days(7)), full);
+    }
+
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
     None => println!("subcommand not found"),
   };
 }
 
-fn print_tasks_list(pomidorka: &Pomidorka, only_active: bool, period: Option<chrono::Duration>) {
-  let tasks = match only_active {
-    true => pomidorka.active_tasks(),
-    false => pomidorka.tasks(period.unwrap()),
-  };
+fn log_tasks_list(pomidorka: &Pomidorka, period: Option<chrono::Duration>, full: bool) {
+  let tasks = pomidorka.tasks(period.unwrap());
   if tasks.is_empty() {
     println!("no tasks to show");
     return;
   }
 
+  println!("{}", "".clear());
+
   let mut date = None;
   for t in tasks {
     let task_date = t.start_time().date();
     if date.is_none() || date.unwrap() != task_date {
-      println!(
-        "\n{}: {}",
-        task_date.format("%Y-%m-%d"),
-        task_date.weekday()
-      );
-      println!("{}", "—".repeat(50));
+      let msg = format!("\n{}", task_date.format("%A %d %B %Y"),);
+      println!("{}", msg.cyan());
       date = Some(task_date);
     }
-    let mut category_name = "default".to_owned();
-    if let Some(task_category) = pomidorka.category_by_id(t.category_id()) {
-      category_name = task_category.name().to_owned();
+    let mut project_name = "default".to_owned();
+    if let Some(task_project) = pomidorka.project_by_id(t.project_id()) {
+      project_name = task_project.name().to_owned();
     }
-    print_task(&t, category_name.as_str());
+    log_task(&t, project_name.as_str(), full);
   }
 }
 
-fn print_task(task: &task::Task, category_name: &str) {
-  let time_left = chrono::Duration::from_std(task.time_left()).unwrap();
-  let mut time_left_str = "".to_owned();
-  if !time_left.is_zero() {
-    time_left_str = format!(
-      ": {:02}:{:02}",
-      time_left.num_minutes(),
-      time_left.num_seconds() % 60
-    );
-  }
+fn log_task(task: &task::Task, project_name: &str, full: bool) {
+  let stop_time = task.stop_time();
+  let stop_time_msg = stop_time
+    .unwrap_or(chrono::Local::now())
+    .naive_local()
+    .format("%H:%M")
+    .to_string();
 
-  let task_duration = chrono::Duration::from_std(task.duration()).unwrap();
+  let colored_stop_time_msg = match stop_time.is_some() {
+    true => stop_time_msg.green(),
+    false => stop_time_msg.yellow(),
+  };
+
+  let tags: Vec<String> = task
+    .tags()
+    .iter()
+    .map(|tag| tag.cyan().to_string())
+    .collect();
+  let tags_str = tags.join(", ");
+
   println!(
-    "#{:04} | {} — {} | {:8} |  {} {}",
+    "{}{:04}  {} to {} {:11}  {:8}  {}  [{}]",
+    " ".repeat(5),
     task.id(),
-    task.start_time().naive_local().format("%H:%M"),
-    (task.start_time() + task_duration)
+    task
+      .start_time()
       .naive_local()
-      .format("%H:%M"),
-    category_name,
-    task.description(),
-    time_left_str,
+      .format("%H:%M")
+      .to_string()
+      .green(),
+    colored_stop_time_msg,
+    format_duration(task.duration()),
+    project_name.red(),
+    match full {
+      true => task.title().purple().to_string(),
+      false => "".to_owned(),
+    },
+    tags_str.italic()
   )
 }
 
-fn print_categories(pomidorka: &Pomidorka) {
-  for category in pomidorka.categories() {
-    println!("{}: {}", category.id(), category.name());
+fn print_projects(pomidorka: &Pomidorka) {
+  for project in pomidorka.projects() {
+    println!("{}: {}", project.id(), project.name());
   }
 }

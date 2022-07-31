@@ -1,9 +1,8 @@
-use crate::{category::Category, storage::Storage, task::Task};
+use crate::{project::Project, storage::Storage, task::Task};
 
 pub struct Pomidorka {
   storage_: Storage,
-  categories_: Vec<Category>,
-  active_tasks_: Vec<Task>,
+  projects_: Vec<Project>,
   tasks_: Vec<Task>,
 }
 
@@ -20,40 +19,52 @@ impl Pomidorka {
         .unwrap(),
     );
     let tasks = storage.tasks();
-    let categories = storage.categories();
-    let active_tasks = tasks
-      .iter()
-      .filter(|t| !t.time_left().is_zero())
-      .map(|t| t.clone())
-      .collect();
+    let projects = storage.projects();
 
     Self {
       storage_: storage,
-      categories_: categories,
+      projects_: projects,
       tasks_: tasks,
-      active_tasks_: active_tasks,
     }
   }
 
-  pub fn add_task(&mut self, category_id: u128, description: &str) {
-    const DEFAULT_DURATION: f32 = 25.0 * 60.0;
+  pub fn start(
+    &mut self,
+    project_name: &str,
+    title: &str,
+    tags: Vec<String>,
+  ) -> Result<Task, &str> {
+    if !self.active_task().is_none() {
+      return Err("active task already exists, stop it firstly");
+    }
+    let project = self.upsert_project(project_name);
     let task = Task::new(
       self.storage_.state().last_task_id + 1,
-      category_id,
-      description,
-      std::time::Duration::from_secs_f32(DEFAULT_DURATION),
+      project.id(),
+      title,
+      tags,
     );
     self.storage_.add_task(&task);
-    self.active_tasks_.push(task.clone());
-    self.tasks_.push(task);
+    self.tasks_.push(task.clone());
+    return Ok(task);
+  }
+
+  pub fn stop(&mut self) -> Result<Task, &str> {
+    let active_task_opt = self.tasks_.iter_mut().find(|t| t.stop_time().is_none());
+    if active_task_opt.is_none() {
+      return Err("active task not found, start it firstly");
+    }
+
+    let active_task = active_task_opt.unwrap();
+    active_task.stop();
+
+    self.storage_.remove_task(active_task.id());
+    self.storage_.add_task(active_task);
+
+    return Ok(active_task.clone());
   }
 
   pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {
-    let active_task_position = self.active_tasks_.iter().position(|t| t.id() == task_id);
-    if active_task_position.is_some() {
-      self.active_tasks_.remove(active_task_position.unwrap());
-    }
-
     let task_position = self.tasks_.iter().position(|t| t.id() == task_id);
     if task_position.is_none() {
       return Err("task not found");
@@ -63,29 +74,6 @@ impl Pomidorka {
     self.storage_.remove_task(task_id);
 
     return Ok(task_id);
-  }
-
-  pub fn stop_task(&mut self, task_id: u128) -> Result<u128, &str> {
-    let active_task_position = self.active_tasks_.iter().position(|t| t.id() == task_id);
-    if active_task_position.is_none() {
-      return Err("task not found");
-    }
-    let task = &mut self.active_tasks_[active_task_position.unwrap()];
-    task.stop();
-    self.storage_.remove_task(task_id);
-    self.storage_.add_task(&task);
-
-    return Ok(task_id);
-  }
-
-  pub fn add_category(&mut self, category_name: &str) {
-    let category = Category::new(self.storage_.state().last_category_id + 1, category_name);
-    self.storage_.add_category(&category);
-    self.categories_.push(category);
-  }
-
-  pub fn active_tasks(&self) -> Vec<Task> {
-    self.active_tasks_.clone()
   }
 
   pub fn tasks(&self, period: chrono::Duration) -> Vec<Task> {
@@ -98,13 +86,38 @@ impl Pomidorka {
       .collect()
   }
 
-  pub fn categories(&self) -> Vec<Category> {
-    self.categories_.clone()
+  pub fn active_task(&mut self) -> Option<&Task> {
+    self.tasks_.iter().find(|t| t.stop_time().is_none())
   }
 
-  pub fn category_by_id(&self, category_id: u128) -> Option<Category> {
-    self.categories_.iter().find_map(|c| {
-      if c.id() == category_id {
+  pub fn projects(&self) -> Vec<Project> {
+    self.projects_.clone()
+  }
+
+  fn add_project(&mut self, project_name: &str) -> Project {
+    let project = Project::new(self.storage_.state().last_project_id + 1, project_name);
+    self.storage_.add_project(&project);
+    self.projects_.push(project.clone());
+
+    return project;
+  }
+
+  fn upsert_project(&mut self, name: &str) -> Project {
+    let project = self.projects_.iter().find_map(|p| {
+      if p.name() == name {
+        return Some(p.clone());
+      }
+      return None;
+    });
+    if project.is_none() {
+      return self.add_project(name);
+    }
+    return project.unwrap();
+  }
+
+  pub fn project_by_id(&self, project_id: u128) -> Option<Project> {
+    self.projects_.iter().find_map(|c| {
+      if c.id() == project_id {
         return Some(c.clone());
       }
       return None;
