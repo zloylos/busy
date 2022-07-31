@@ -3,9 +3,13 @@ extern crate colored;
 extern crate serde;
 extern crate serde_json;
 
+use chrono::Datelike;
 use colored::*;
 
-use crate::{duration_fmt::format_duration, pomidorka::Pomidorka};
+use crate::{
+  duration_fmt::{format_duration, format_duration_without_paddings},
+  pomidorka::Pomidorka,
+};
 
 mod duration_fmt;
 mod pomidorka;
@@ -15,16 +19,20 @@ mod storage;
 mod task;
 
 fn main() {
-  let matches = clap::App::new("Pomidorka")
+  let matches = clap::Command::new("Pomidorka")
     .subcommand(
-      clap::App::new("start")
+      clap::Command::new("start")
         .arg(clap::Arg::new("project_name").required(true).index(1))
         .arg(clap::Arg::new("task_title").required(true).index(2))
         .arg(clap::Arg::new("tags").index(3).multiple_values(true)),
     )
-    .subcommand(clap::App::new("stop"))
-    .subcommand(clap::App::new("log").arg(clap::Arg::new("full").long("full")))
-    .subcommand(clap::App::new("projects"))
+    .subcommand(clap::Command::new("stop"))
+    .subcommand(
+      clap::Command::new("log")
+        .arg(clap::Arg::new("full").long("full"))
+        .arg(clap::Arg::new("days").default_value("-1").long("days")),
+    )
+    .subcommand(clap::Command::new("projects"))
     .get_matches();
 
   let mut pomidorka = Pomidorka::new();
@@ -57,9 +65,10 @@ fn main() {
       match pomidorka.stop() {
         Ok(task) => {
           println!("task stopped:");
+          let project_id = task.project_id();
           log_task(
             &task,
-            pomidorka.project_by_id(task.project_id()).unwrap().name(),
+            pomidorka.project_by_id(project_id).unwrap().name(),
             true,
           );
         }
@@ -68,11 +77,17 @@ fn main() {
     }
 
     Some("log") => {
-      let full = matches
-        .subcommand_matches("log")
-        .unwrap()
-        .is_present("full");
-      log_tasks_list(&pomidorka, Some(chrono::Duration::days(7)), full);
+      let subcommand_matches = matches.subcommand_matches("log").unwrap();
+      let full = subcommand_matches.is_present("full");
+
+      let mut period = chrono::Duration::days(7_i64);
+      let period_arg: i64 = subcommand_matches.value_of_t("days").unwrap();
+      if period_arg != -1 {
+        period =
+          chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64);
+      }
+
+      log_tasks_list(&pomidorka, Some(period), full);
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
@@ -89,19 +104,38 @@ fn log_tasks_list(pomidorka: &Pomidorka, period: Option<chrono::Duration>, full:
 
   println!("{}", "".clear());
 
+  let mut by_dates: Vec<Vec<&task::Task>> = Vec::new();
   let mut date = None;
-  for t in tasks {
+  for t in tasks.iter() {
     let task_date = t.start_time().date();
     if date.is_none() || date.unwrap() != task_date {
-      let msg = format!("\n{}", task_date.format("%A %d %B %Y"),);
-      println!("{}", msg.cyan());
+      by_dates.push(Vec::new());
       date = Some(task_date);
     }
-    let mut project_name = "default".to_owned();
-    if let Some(task_project) = pomidorka.project_by_id(t.project_id()) {
-      project_name = task_project.name().to_owned();
+    by_dates.last_mut().unwrap().push(t);
+  }
+
+  for tasks in by_dates.iter() {
+    let date = tasks.first().unwrap().start_time().date();
+    let total_time = tasks
+      .iter()
+      .map(|t| t.duration())
+      .reduce(|acc, new_d| acc + new_d);
+
+    println!(
+      "{} — {}",
+      date.format("%A, %d %B %Y").to_string().bold().cyan(),
+      format_duration_without_paddings(total_time.unwrap())
+    );
+
+    for t in tasks.iter() {
+      let mut project_name = "default".to_string();
+      if let Some(task_project) = pomidorka.project_by_id(t.project_id()) {
+        project_name = task_project.name().to_string();
+      }
+      log_task(t, project_name.as_str(), full);
     }
-    log_task(&t, project_name.as_str(), full);
+    println!("");
   }
 }
 

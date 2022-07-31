@@ -11,6 +11,19 @@ pub fn format_duration(duration: chrono::Duration) -> String {
   );
 }
 
+pub fn format_duration_without_paddings(duration: chrono::Duration) -> String {
+  let hours = duration.num_hours();
+  let minutes = duration.num_minutes();
+  let seconds = duration.num_seconds();
+
+  return format!(
+    "{} {} {}",
+    format_number(hours, "h"),
+    format_number(minutes % 60, "m"),
+    format_number_force(seconds % 60, "s"),
+  );
+}
+
 fn format_number(number: i64, prefix: &str) -> String {
   match number == 0 {
     true => "".to_owned(),
