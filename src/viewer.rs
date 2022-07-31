@@ -261,7 +261,6 @@ impl Viewer {
             false => Some(task_description.clone()),
           },
         );
-        println!();
       }
     } else if show_full {
       println!("{}{}", " ".repeat(4 + 4 + 32), task_description);

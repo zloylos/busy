@@ -13,7 +13,7 @@ impl GitSyncer {
       remote,
       branch: branch.unwrap_or("master".to_owned()),
     };
-    obj.init().unwrap();
+    _ = obj.init();
     return obj;
   }
 
@@ -25,16 +25,14 @@ impl GitSyncer {
       return self.set_remote();
     }
     self.git_with_args(&["init"])?;
-    self.set_remote()?;
-    self.pull()?;
-
-    self.git_with_args(&["add", "-A"])?;
-    self.commit("initial")?;
+    _ = self.set_remote();
+    _ = self.pull();
 
     return Ok("initialization success".to_string());
   }
 
   pub fn commit(&mut self, msg: &str) -> std::io::Result<String> {
+    self.git_with_args(&["add", "-A"])?;
     return self.git_with_args(&["commit", "-a", "-m", msg]);
   }
 
@@ -105,18 +103,18 @@ impl GitSyncer {
 }
 
 fn git_with_args(cwd: &str, args: &[&str]) -> std::io::Result<String> {
+  debug!("run git with args: {:?} cwd: {}", args, cwd);
   let output = std::process::Command::new("git")
     .current_dir(cwd)
     .args(args)
     .output()?;
 
+  let stdout = String::from_utf8(output.stdout.clone()).unwrap_or_default();
   if !output.status.success() {
-    let stderr = String::from_utf8(output.stderr.clone()).unwrap_or_default();
-    debug!("git with err: {} status: {}", stderr, output.status);
-    return Err(std::io::Error::new(std::io::ErrorKind::Other, stderr));
+    debug!("git with err: {} status: {}", stdout, output.status);
+    return Err(std::io::Error::new(std::io::ErrorKind::Other, stdout));
   }
 
-  let stdout = String::from_utf8(output.stdout.clone()).unwrap_or_default();
   debug!("git with output: {:?} status: {}", stdout, output.status);
 
   return Ok(stdout);
