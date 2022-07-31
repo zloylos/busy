@@ -3,10 +3,15 @@ pub fn format_duration(duration: chrono::Duration) -> String {
   let minutes = duration.num_minutes();
   let seconds = duration.num_seconds();
 
+  let minutes_formatted = match hours > 0 {
+    true => format_number_force(minutes % 60, "m"),
+    false => format_number(minutes % 60, "m"),
+  };
+
   return format!(
     "{:>4}{:>4}{:>4}",
     format_number(hours, "h"),
-    format_number(minutes % 60, "m"),
+    minutes_formatted,
     format_number_force(seconds % 60, "s"),
   );
 }
