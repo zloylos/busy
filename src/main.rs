@@ -58,6 +58,7 @@ fn main() {
 
   match matches.subcommand_name() {
     Some("projects") => {
+      clear_screen();
       viewer.print_projects();
     }
 
@@ -100,6 +101,7 @@ fn main() {
     }
 
     Some("log") => {
+      clear_screen();
       let subcommand_matches = matches.subcommand_matches("log").unwrap();
       let show_full = subcommand_matches.is_present("full");
       let show_today_only = subcommand_matches.is_present("today");
@@ -115,6 +117,7 @@ fn main() {
     }
 
     Some("stat") => {
+      clear_screen();
       let subcommand_matches = matches.subcommand_matches("stat").unwrap();
       let show_today_only = subcommand_matches.is_present("today");
       let with_tags = subcommand_matches.is_present("with-tags");
@@ -140,6 +143,10 @@ fn main() {
     Some(subcmd) => println!("unknown subcommand {}", subcmd),
     None => println!("subcommand not found"),
   };
+}
+
+fn clear_screen() {
+  subprocess::Exec::cmd("clear").join().unwrap();
 }
 
 fn projects_to_ids_set(
