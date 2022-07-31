@@ -21,23 +21,29 @@ impl VersionControl {
       .exists()
     {
       self.set_remote();
-      self.pull();
       return;
     }
-    self.run_with_args_sync(&["init"]);
+    self.run_with_args(&["init"]);
     self.set_remote();
-    self.run_with_args_sync(&["add", "-A"]);
+    self.run_with_args(&["add", "-A"]);
     self.commit("initial");
   }
 
   pub fn commit(&mut self, msg: &str) {
-    self.run_with_args_sync(&["commit", "-a", "-m", msg]);
-    self.push();
+    self.run_with_args(&["commit", "-a", "-m", msg]);
+  }
+
+  pub fn push(&mut self) {
+    self.run_with_args(&["push", "--set-upstream", "origin", "master"]);
+  }
+
+  pub fn pull(&mut self) {
+    self.run_with_args(&["pull", "origin", "master"]);
   }
 
   fn set_remote(&mut self) {
     if self.remote.is_some() {
-      self.run_with_args_sync(&[
+      self.run_with_args(&[
         "remote",
         "add",
         "origin",
@@ -46,29 +52,18 @@ impl VersionControl {
     }
   }
 
-  fn push(&mut self) {
-    self.run_with_args_async(&["push", "--set-upstream", "origin", "master"]);
-  }
-
-  fn pull(&mut self) {
-    self.run_with_args_sync(&["pull", "origin", "master"]);
-  }
-
-  fn run_with_args_sync(&mut self, args: &[&str]) {
-    let child = run_with_args(self.main_folder_path.as_str(), args);
-    process_child(child.unwrap());
-  }
-
-  fn run_with_args_async(&mut self, args: &[&str]) {
-    let child = run_with_args(self.main_folder_path.as_str(), args);
-    std::thread::spawn(move || {
-      process_child(child.unwrap());
-    });
+  fn run_with_args(&mut self, args: &[&str]) {
+    run_with_args(&self.main_folder_path, args);
   }
 }
 
-fn process_child(child: std::process::Child) {
-  let output = child.wait_with_output().unwrap();
+fn run_with_args(cwd: &str, args: &[&str]) {
+  let output = std::process::Command::new("git")
+    .current_dir(cwd)
+    .args(args)
+    .output()
+    .unwrap();
+
   if !output.status.success() {
     debug!(
       "git with err: {} status: {}",
@@ -83,13 +78,4 @@ fn process_child(child: std::process::Child) {
     String::from_utf8(output.stdout.clone()).unwrap_or_default(),
     output.status
   );
-}
-
-fn run_with_args(cwd: &str, args: &[&str]) -> std::io::Result<std::process::Child> {
-  return std::process::Command::new("git")
-    .current_dir(cwd)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
-    .args(args)
-    .spawn();
 }

@@ -52,6 +52,7 @@ fn build_cli() -> clap::Command<'static> {
         .about("show active task if exists"),
     )
     .subcommand(clap::Command::new("stop").about("stop current task"))
+    .subcommand(clap::Command::new("sync").about("sync tasks. please set $POMIDORKA_REMOTE env"))
     .subcommand(clap::Command::new("pause").about("pause current task"))
     .subcommand(clap::Command::new("continue").about("continue current task"))
     .subcommand(
@@ -176,6 +177,12 @@ fn main() {
         }
         Err(err) => println!("start task err: {}", err),
       };
+    }
+
+    Some("sync") => {
+      println!("Start syncing…");
+      pomidorka.borrow_mut().sync();
+      println!("Syncing finished");
     }
 
     Some("stop") => {

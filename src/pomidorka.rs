@@ -44,6 +44,12 @@ impl Pomidorka {
     }
   }
 
+  pub fn sync(&mut self) {
+    self.version_control_.pull();
+    self.version_control_.push();
+    self.storage_ = Storage::new(&get_storage_dir_path());
+  }
+
   fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
     let state = self.storage_.state();
     let mut pushed_ids = Vec::new();
