@@ -1,23 +1,31 @@
 use crate::{project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable};
 
+fn get_storage_dir_path() -> String {
+  let storage_dir = match std::env::var("POMIDORKA_DIR") {
+    Ok(dir) => std::path::Path::new(&dir).to_path_buf(),
+    Err(_) => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
+  };
+
+  println!("storage dir is: {:?}", storage_dir);
+  std::fs::create_dir_all(&storage_dir).unwrap();
+
+  return storage_dir
+    .canonicalize()
+    .unwrap()
+    .to_str()
+    .unwrap()
+    .to_owned();
+}
+
 pub struct Pomidorka {
   storage_: Storage,
 }
 
 impl Pomidorka {
   pub fn new() -> Self {
-    let home_dir = std::env!("HOME");
-    let default_database_path = std::path::Path::new(home_dir).join(".pomidorka");
-    let _ = std::fs::create_dir_all(&default_database_path);
-    let storage = Storage::new(
-      default_database_path
-        .canonicalize()
-        .unwrap()
-        .to_str()
-        .unwrap(),
-    );
-
-    Self { storage_: storage }
+    Self {
+      storage_: Storage::new(&get_storage_dir_path()),
+    }
   }
 
   pub fn storage(&self) -> &Storage {
