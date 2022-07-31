@@ -122,7 +122,7 @@ impl Pomidorka {
       .map(|t| t.clone());
   }
 
-  pub fn active_task(&mut self) -> Option<Task> {
+  pub fn active_task(&self) -> Option<Task> {
     let tasks = self.storage_.tasks();
     let found_task = tasks.iter().find(|t| t.stop_time().is_none());
     match found_task {

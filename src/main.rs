@@ -45,6 +45,7 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
           .multiple_values(true),
       ]),
     )
+    .subcommand(clap::Command::new("status").about("show active task if exists"))
     .subcommand(clap::Command::new("stop").about("stop current task"))
     .subcommand(
       clap::Command::new("log").about("print last tasks").args(&[
@@ -124,6 +125,17 @@ fn main() {
       clear_screen();
       println!("{}", "Tags: ".bright_cyan());
       viewer.print_tags();
+    }
+
+    Some("status") => {
+      match pomidorka.borrow().active_task() {
+        Some(task) => {
+          viewer.log_task(&task, true);
+        }
+        None => {
+          println!("There are no active tasks");
+        }
+      };
     }
 
     Some("start") => {
