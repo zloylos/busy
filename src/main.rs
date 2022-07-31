@@ -236,6 +236,26 @@ fn get_editor() -> String {
   std::env::var("EDITOR").unwrap_or(std::env::var("VISUAL").unwrap_or("nvim".to_string()))
 }
 
+fn run_edit_and_get_result<T: serde::ser::Serialize>(
+  item: &T,
+  tmp_file: &mut tempfile::NamedTempFile,
+  editor: &str,
+) -> String {
+  let item_str = serde_json::to_string_pretty(item).unwrap();
+  tmp_file.write_all(item_str.as_bytes()).unwrap();
+
+  subprocess::Exec::cmd(editor)
+    .arg(tmp_file.path())
+    .join()
+    .expect("edit cmd doesn't work");
+
+  let mut buf = String::new();
+  tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
+  tmp_file.read_to_string(&mut buf).unwrap();
+
+  return buf;
+}
+
 fn edit(
   pomidorka: Rc<RefCell<Pomidorka>>,
   viewer: &Viewer,
@@ -254,31 +274,13 @@ fn edit(
     edit_data_type, id, tmp_file
   );
 
-  let run_edit = |tmp_file: &tempfile::NamedTempFile| {
-    subprocess::Exec::cmd(&editor)
-      .arg(tmp_file.path())
-      .join()
-      .expect("edit cmd doesn't work");
-  };
-
-  let get_edited_content = |tmp_file: &mut tempfile::NamedTempFile| {
-    let mut buf = String::new();
-    tmp_file.seek(std::io::SeekFrom::Start(0)).unwrap();
-    tmp_file.read_to_string(&mut buf).unwrap();
-    return buf;
-  };
-
   match edit_data_type {
     EditDataType::Task => {
       let task = pomidorka.borrow().task_by_id(id).unwrap();
       let all_tags = pomidorka.borrow().tags();
       let task_view = TaskView::from_task(&task, &all_tags);
 
-      let task_str = serde_json::to_string_pretty(&task_view).unwrap();
-      tmp_file.write_all(task_str.as_bytes()).unwrap();
-
-      run_edit(&tmp_file);
-      let updated_task_string = get_edited_content(&mut tmp_file);
+      let updated_task_string = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
       let updated_task_view: TaskView = serde_json::from_str(&updated_task_string).unwrap();
       let updated_task = updated_task_view.to_task(&all_tags);
       viewer.log_task(&updated_task, true);
@@ -287,11 +289,7 @@ fn edit(
 
     EditDataType::Project => {
       let project = pomidorka.borrow().project_by_id(id).unwrap();
-      let project_str = serde_json::to_string_pretty(&project).unwrap();
-      tmp_file.write_all(project_str.as_bytes()).unwrap();
-
-      run_edit(&tmp_file);
-      let updated_project_string = get_edited_content(&mut tmp_file);
+      let updated_project_string = run_edit_and_get_result(&project, &mut tmp_file, &editor);
       let updated_project: Project = serde_json::from_str(&updated_project_string).unwrap();
 
       println!("{}", "Updated project: ".bright_yellow());
@@ -304,11 +302,7 @@ fn edit(
 
     EditDataType::Tag => {
       let tag = pomidorka.borrow().tag_by_id(id).unwrap();
-      let tag_str = serde_json::to_string_pretty(&tag).unwrap();
-      tmp_file.write_all(tag_str.as_bytes()).unwrap();
-
-      run_edit(&tmp_file);
-      let updated_tag_string = get_edited_content(&mut tmp_file);
+      let updated_tag_string = run_edit_and_get_result(&tag, &mut tmp_file, &editor);
       let updated_tag: Tag = serde_json::from_str(&updated_tag_string).unwrap();
 
       println!("{}", "Updated tag: ".bright_yellow());
