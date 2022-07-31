@@ -64,9 +64,14 @@ impl Pomidorka {
     return Ok(active_task.clone());
   }
 
-  pub fn push_task(&mut self, task: Task) {
-    self.storage_.add_task(&task);
-    self.tasks_.push(task.clone());
+  pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
+    match self.storage_.replace_task(task) {
+      Ok(_) => {
+        self.tasks_ = self.storage_.tasks();
+        return Ok(());
+      }
+      Err(e) => Err(e),
+    }
   }
 
   pub fn remove_task(&mut self, task_id: u128) -> Result<u128, &str> {

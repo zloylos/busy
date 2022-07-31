@@ -8,6 +8,7 @@ pub struct Storage {
   projects_file_: std::fs::File,
   state_file_: std::fs::File,
   state_: State,
+  tasks_: Vec<Task>,
 }
 
 impl Storage {
@@ -18,31 +19,35 @@ impl Storage {
     return state;
   }
 
-  fn open_file(database_dir: &str, filename: &str) -> std::fs::File {
+  fn open_file(database_dir: &str, filename: &str) -> (std::path::PathBuf, std::fs::File) {
     let tasks_filepath = std::path::Path::new(database_dir).join(filename);
-    return std::fs::OpenOptions::new()
-      .create(true)
-      .append(true)
-      .write(true)
-      .read(true)
-      .open(tasks_filepath)
-      .unwrap();
+    return (
+      tasks_filepath.clone(),
+      std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .write(true)
+        .read(true)
+        .open(tasks_filepath)
+        .unwrap(),
+    );
   }
 
   pub fn new(database_dir_path: &str) -> Self {
-    let mut state_file = Storage::open_file(database_dir_path, "state.json");
+    let mut state_file = Storage::open_file(database_dir_path, "state.json").1;
+    let (tasks_filepath, tasks_file) = Storage::open_file(database_dir_path, "tasks.json");
     let state = Self::restore_state(&mut state_file);
-    Self {
-      tasks_file_: Storage::open_file(database_dir_path, "tasks.json"),
-      tasks_filepath_: std::path::Path::new(database_dir_path)
-        .join("tasks.json")
-        .to_str()
-        .unwrap()
-        .to_owned(),
-      projects_file_: Storage::open_file(database_dir_path, "projects.json"),
+    let mut storage = Self {
+      tasks_file_: tasks_file,
+      tasks_filepath_: tasks_filepath.to_str().unwrap().to_string(),
+      projects_file_: Storage::open_file(database_dir_path, "projects.json").1,
       state_file_: state_file,
       state_: state,
-    }
+      tasks_: Vec::new(),
+    };
+
+    storage.tasks_ = storage.read_tasks();
+    return storage;
   }
 
   pub fn tasks_filepath(&self) -> &str {
@@ -68,11 +73,24 @@ impl Storage {
     let mut tasks = self.tasks();
     let pos = tasks.iter().position(|t| t.id() == task_id).unwrap();
     tasks.remove(pos);
-
     self.rewrite_tasks(tasks);
   }
 
-  pub fn tasks(&mut self) -> Vec<Task> {
+  pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
+    let mut tasks = self.tasks();
+    if let Some(pos) = tasks.iter().position(|t| t.id() == task.id()) {
+      tasks[pos] = task;
+      self.rewrite_tasks(tasks);
+      return Ok(());
+    }
+    return Err("source task not found".to_string());
+  }
+
+  pub fn tasks(&self) -> Vec<Task> {
+    return self.tasks_.clone();
+  }
+
+  fn read_tasks(&mut self) -> Vec<Task> {
     self.tasks_file_.rewind().unwrap();
     let mut tasks = Vec::new();
     for line in BufReader::new(&self.tasks_file_).lines() {
@@ -104,9 +122,13 @@ impl Storage {
   }
 
   fn rewrite_tasks(&mut self, tasks: Vec<Task>) {
+    let mut new_tasks = tasks;
+
+    new_tasks.sort_by_key(|t| t.id());
     self.tasks_file_.set_len(0).unwrap();
-    for task in tasks {
-      self.add_task(&task);
+
+    for task in new_tasks.iter() {
+      self.add_task(task);
     }
   }
 
@@ -114,5 +136,8 @@ impl Storage {
     self.state_file_.set_len(0).unwrap();
     let state_str = serde_json::to_string(&self.state_).unwrap();
     self.state_file_.write_all(state_str.as_bytes()).unwrap();
+
+    self.tasks_file_.flush().unwrap();
+    self.state_file_.flush().unwrap();
   }
 }

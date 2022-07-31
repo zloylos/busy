@@ -205,8 +205,7 @@ fn main() {
         viewer.log_task(&updated_task, true);
         {
           let mut p = pomidorka.borrow_mut();
-          p.remove_task(updated_task.id()).unwrap();
-          p.push_task(updated_task);
+          p.replace_task(updated_task).unwrap();
         };
       }
       println!("Edit completed");
