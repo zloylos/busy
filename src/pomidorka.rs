@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::{project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable};
 
 fn get_storage_dir_path() -> String {
@@ -6,6 +8,7 @@ fn get_storage_dir_path() -> String {
     Err(_) => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".pomidorka"),
   };
 
+  debug!("storage path is: {:?}", storage_dir);
   std::fs::create_dir_all(&storage_dir).unwrap();
 
   return storage_dir

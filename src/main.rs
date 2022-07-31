@@ -12,6 +12,7 @@ use std::{
 
 use chrono::{Datelike, Timelike};
 use clap::ArgMatches;
+use log::debug;
 use task::TaskView;
 use traits::Indexable;
 use viewer::Viewer;
@@ -82,6 +83,8 @@ fn build_cli(_: Rc<RefCell<Pomidorka>>) -> clap::Command<'static> {
 }
 
 fn main() {
+  env_logger::init();
+
   let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
 
   let cmd = build_cli(Rc::clone(&pomidorka));
@@ -190,10 +193,12 @@ fn main() {
       let task_ids: Vec<u128> = subcommand_matches.values_of_t("task").unwrap();
       for task_id in task_ids {
         let mut tmp_file = tempfile::Builder::new()
-          .prefix("pomidorka")
+          .prefix("pomidorka_")
           .suffix(".json")
           .tempfile()
           .unwrap();
+
+        debug!("edit task_id: {} tmp_file_path: {:?}", task_id, tmp_file);
 
         let task = {
           let p = pomidorka.borrow();
@@ -234,6 +239,9 @@ fn main() {
 }
 
 fn clear_screen() {
+  if log::log_enabled!(log::Level::Debug) {
+    return;
+  }
   subprocess::Exec::cmd("clear")
     .join()
     .expect("clean cmd doesn't work");

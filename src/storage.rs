@@ -1,5 +1,7 @@
 use std::io::{Seek, Write};
 
+use log::debug;
+
 use crate::{project::Project, state::State, tag::Tag, task::Task, traits::Indexable};
 
 pub struct Storage {
@@ -120,7 +122,15 @@ where
         .unwrap(),
       buffer: Vec::new(),
     };
+
     storage_item.restore();
+
+    debug!(
+      "restored {} items from: {}",
+      storage_item.buffer.len(),
+      filepath
+    );
+
     return storage_item;
   }
 
