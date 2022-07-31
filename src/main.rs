@@ -109,11 +109,10 @@ fn main() {
   env_logger::init();
 
   let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
-
   let cmd = build_cli(Rc::clone(&pomidorka));
   let matches = cmd.get_matches();
-
   let viewer = Viewer::new(Rc::clone(&pomidorka));
+
   match matches.subcommand_name() {
     Some("projects") => {
       clear_screen();
@@ -145,13 +144,9 @@ fn main() {
       let task_title = command_matches.value_of("task_title").unwrap();
       let tags = extract_tags("tags", command_matches);
 
-      let task_res = {
-        let mut p = pomidorka.borrow_mut();
-        p.start(project_name, task_title, tags)
-      };
-      match task_res {
+      match pomidorka.borrow_mut().start(project_name, task_title, tags) {
         Ok(task) => {
-          println!("task started: ");
+          println!("Task started: ");
           viewer.log_task(&task, true);
         }
         Err(err) => println!("start task err: {}", err),
@@ -159,13 +154,9 @@ fn main() {
     }
 
     Some("stop") => {
-      let task_res = {
-        let mut p = pomidorka.borrow_mut();
-        p.stop()
-      };
-      match task_res {
+      match pomidorka.borrow_mut().stop() {
         Ok(task) => {
-          println!("task stopped:");
+          println!("Task stopped:");
           viewer.log_task(&task, true);
         }
         Err(err) => println!("couldn't stop: {}", err),
@@ -183,10 +174,11 @@ fn main() {
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
       let tags = extract_tags("tag", subcommand_matches);
-
       let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
+
       viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
     }
 
@@ -201,10 +193,11 @@ fn main() {
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
       let tags = extract_tags("tag", subcommand_matches);
-
       let found_tags = pomidorka.borrow().find_tag_by_names(&tags);
+
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
+
       viewer.show_stat(period, project_ids, &found_tags, with_tags);
     }
 
@@ -391,10 +384,11 @@ fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Durati
       .unwrap();
   }
 
-  return match show_today_only {
-    true => seconds_from_midnight,
-    false => chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
-      .checked_add(&seconds_from_midnight)
-      .unwrap(),
-  };
+  if show_today_only {
+    return seconds_from_midnight;
+  }
+
+  return chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
+    .checked_add(&seconds_from_midnight)
+    .unwrap();
 }
