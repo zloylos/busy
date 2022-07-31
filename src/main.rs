@@ -50,6 +50,7 @@ fn main() {
       ]),
     )
     .subcommand(clap::Command::new("projects"))
+    .subcommand(clap::Command::new("edit"))
     .get_matches();
 
   let pomidorka = Rc::new(RefCell::new(Pomidorka::new()));
@@ -127,6 +128,11 @@ fn main() {
       println!("period: {}", period_arg.unwrap_or_default());
       let period = get_period(period_arg, show_today_only);
       viewer.show_stat(period, project_ids, with_tags);
+    }
+
+    Some("edit") => {
+      let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
+      subprocess::Exec::cmd("nvim").arg(filepath).join().unwrap();
     }
 
     Some(subcmd) => println!("unknown subcommand {}", subcmd),

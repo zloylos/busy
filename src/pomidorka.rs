@@ -94,6 +94,10 @@ impl Pomidorka {
     self.projects_.clone()
   }
 
+  pub fn tasks_db_filepath(&self) -> &str {
+    self.storage_.tasks_filepath()
+  }
+
   fn add_project(&mut self, project_name: &str) -> Project {
     let project = Project::new(self.storage_.state().last_project_id + 1, project_name);
     self.storage_.add_project(&project);

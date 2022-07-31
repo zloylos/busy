@@ -4,6 +4,7 @@ use crate::{project::Project, state::State, task::Task};
 
 pub struct Storage {
   tasks_file_: std::fs::File,
+  tasks_filepath_: String,
   projects_file_: std::fs::File,
   state_file_: std::fs::File,
   state_: State,
@@ -17,15 +18,35 @@ impl Storage {
     return state;
   }
 
+  fn open_file(database_dir: &str, filename: &str) -> std::fs::File {
+    let tasks_filepath = std::path::Path::new(database_dir).join(filename);
+    return std::fs::OpenOptions::new()
+      .create(true)
+      .append(true)
+      .write(true)
+      .read(true)
+      .open(tasks_filepath)
+      .unwrap();
+  }
+
   pub fn new(database_dir_path: &str) -> Self {
     let mut state_file = Storage::open_file(database_dir_path, "state.json");
     let state = Self::restore_state(&mut state_file);
     Self {
       tasks_file_: Storage::open_file(database_dir_path, "tasks.json"),
+      tasks_filepath_: std::path::Path::new(database_dir_path)
+        .join("tasks.json")
+        .to_str()
+        .unwrap()
+        .to_owned(),
       projects_file_: Storage::open_file(database_dir_path, "projects.json"),
       state_file_: state_file,
       state_: state,
     }
+  }
+
+  pub fn tasks_filepath(&self) -> &str {
+    self.tasks_filepath_.as_str()
   }
 
   pub fn state(&self) -> State {
@@ -93,16 +114,5 @@ impl Storage {
     self.state_file_.set_len(0).unwrap();
     let state_str = serde_json::to_string(&self.state_).unwrap();
     self.state_file_.write_all(state_str.as_bytes()).unwrap();
-  }
-
-  fn open_file(database_dir: &str, filename: &str) -> std::fs::File {
-    let tasks_filepath = std::path::Path::new(database_dir).join(filename);
-    return std::fs::OpenOptions::new()
-      .create(true)
-      .append(true)
-      .write(true)
-      .read(true)
-      .open(tasks_filepath)
-      .unwrap();
   }
 }
