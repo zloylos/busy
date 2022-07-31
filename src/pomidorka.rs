@@ -30,10 +30,6 @@ impl Pomidorka {
     }
   }
 
-  pub fn storage(&self) -> &Storage {
-    &self.storage_
-  }
-
   fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<u128> {
     let state = self.storage_.state();
     let mut pushed_ids = Vec::new();
@@ -143,6 +139,10 @@ impl Pomidorka {
       .filter(|t| current_time.signed_duration_since(t.start_time()) < period)
       .map(|t| t.clone())
       .collect()
+  }
+
+  pub fn find_tags(&self, tag_ids: &Vec<u128>) -> Vec<Tag> {
+    self.storage_.find_tags(tag_ids)
   }
 
   pub fn task_by_id(&self, task_id: u128) -> Option<Task> {

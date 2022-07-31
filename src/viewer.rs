@@ -71,7 +71,7 @@ impl Viewer {
         *task_duration = task_duration.clone().checked_add(&task.duration()).unwrap();
 
         let project_tags = project_to_tags.entry(project_id).or_insert(BTreeSet::new());
-        let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
+        let task_tags = self.pomidorka.borrow().find_tags(task.tags());
 
         for tag in task_tags {
           let tag_duration = tag_times
@@ -199,7 +199,7 @@ impl Viewer {
   }
 
   pub fn log_task(&self, task: &task::Task, show_full: bool) {
-    let task_tags = self.pomidorka.borrow().storage().find_tags(task.tags());
+    let task_tags = self.pomidorka.borrow().find_tags(task.tags());
     let tags: Vec<String> = task_tags
       .iter()
       .map(|tag| tag.name().cyan().to_string())
