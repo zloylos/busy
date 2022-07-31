@@ -1,11 +1,11 @@
 use log::debug;
 
-pub struct VersionControl {
+pub struct GitVersionControl {
   main_folder_path: String,
   remote: Option<String>,
 }
 
-impl VersionControl {
+impl GitVersionControl {
   pub fn new(main_folder_path: &str, remote: Option<String>) -> Self {
     let mut obj = Self {
       main_folder_path: main_folder_path.to_owned(),
@@ -20,6 +20,7 @@ impl VersionControl {
       .join(".git")
       .exists()
     {
+      self.pull();
       self.set_remote();
       return;
     }

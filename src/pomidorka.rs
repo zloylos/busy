@@ -2,7 +2,7 @@ use log::debug;
 
 use crate::{
   project::Project, storage::Storage, tag::Tag, task::Task, traits::Indexable,
-  version_control::VersionControl,
+  version_control::GitVersionControl,
 };
 
 fn get_storage_dir_path() -> String {
@@ -31,13 +31,13 @@ fn get_git_remote() -> Option<String> {
 
 pub struct Pomidorka {
   storage_: Storage,
-  version_control_: VersionControl,
+  version_control_: GitVersionControl,
 }
 
 impl Pomidorka {
   pub fn new() -> Self {
     let storage_dir_path = get_storage_dir_path();
-    let version_control = VersionControl::new(&storage_dir_path, get_git_remote());
+    let version_control = GitVersionControl::new(&storage_dir_path, get_git_remote());
     Self {
       storage_: Storage::new(&storage_dir_path),
       version_control_: version_control,
