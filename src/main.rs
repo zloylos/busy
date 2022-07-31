@@ -36,6 +36,10 @@ fn main() {
           .long("project")
           .multiple_values(true)
           .takes_value(true),
+        clap::Arg::new("tag")
+          .long("tag")
+          .multiple_values(true)
+          .takes_value(true),
       ]),
     )
     .subcommand(
@@ -45,6 +49,10 @@ fn main() {
         clap::Arg::new("with-tags").long("with-tags"),
         clap::Arg::new("project")
           .long("project")
+          .multiple_values(true)
+          .takes_value(true),
+        clap::Arg::new("tag")
+          .long("tag")
           .multiple_values(true)
           .takes_value(true),
       ]),
@@ -110,10 +118,14 @@ fn main() {
         .ok()
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let tags = subcommand_matches
+        .values_of_t("tag")
+        .ok()
+        .unwrap_or_default();
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
       let period = get_period(period_arg, show_today_only);
-      viewer.log_tasks_list(period, project_ids, show_full);
+      viewer.log_tasks_list(period, project_ids, &tags, show_full);
     }
 
     Some("stat") => {
@@ -126,11 +138,14 @@ fn main() {
         .ok()
         .unwrap_or_default();
       let project_ids = projects_to_ids_set(Rc::clone(&pomidorka), project_names);
+      let tags = subcommand_matches
+        .values_of_t("tag")
+        .ok()
+        .unwrap_or_default();
 
       let period_arg = subcommand_matches.value_of_t("days").ok();
-      println!("period: {}", period_arg.unwrap_or_default());
       let period = get_period(period_arg, show_today_only);
-      viewer.show_stat(period, project_ids, with_tags);
+      viewer.show_stat(period, project_ids, &tags, with_tags);
     }
 
     Some("edit") => {
@@ -146,7 +161,9 @@ fn main() {
 }
 
 fn clear_screen() {
-  subprocess::Exec::cmd("clear").join().unwrap();
+  subprocess::Exec::cmd("clear")
+    .join()
+    .expect("clean cmd doesn't work");
 }
 
 fn projects_to_ids_set(

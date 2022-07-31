@@ -1,6 +1,6 @@
 use std::{
   cell::RefCell,
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, BTreeSet, HashMap, HashSet},
   rc::Rc,
 };
 
@@ -31,9 +31,10 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     project_ids: Option<HashSet<u128>>,
+    tags: &Vec<String>,
     with_tags: bool,
   ) {
-    let by_dates = self.tasks_by_day(period, project_ids);
+    let by_dates = self.tasks_by_day(period, project_ids, tags);
     if by_dates.is_empty() {
       println!("no tasks to show");
       return;
@@ -41,9 +42,9 @@ impl Viewer {
 
     for tasks in by_dates.iter() {
       self.print_date(tasks);
-      let mut project_times: HashMap<u128, chrono::Duration> = HashMap::new();
+      let mut project_times: BTreeMap<u128, chrono::Duration> = BTreeMap::new();
       let mut tag_times: HashMap<String, chrono::Duration> = HashMap::new();
-      let mut project_to_tags: HashMap<u128, HashSet<String>> = HashMap::new();
+      let mut project_to_tags: HashMap<u128, BTreeSet<String>> = HashMap::new();
 
       for task in tasks {
         let project_id = task.project_id();
@@ -52,7 +53,7 @@ impl Viewer {
           .or_insert(chrono::Duration::zero());
         *task_duration = task_duration.clone().checked_add(&task.duration()).unwrap();
 
-        let project_tags = project_to_tags.entry(project_id).or_insert(HashSet::new());
+        let project_tags = project_to_tags.entry(project_id).or_insert(BTreeSet::new());
         for tag in task.tags() {
           let tag_duration = tag_times
             .entry(tag.to_string())
@@ -92,13 +93,12 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     maybe_project_ids: Option<HashSet<u128>>,
+    tags: &Vec<String>,
   ) -> Vec<Vec<Task>> {
     let tasks = self.pomidorka.borrow().tasks(period);
     if tasks.is_empty() {
       return Vec::new();
     }
-
-    println!("{}", "".clear());
 
     let mut by_dates: Vec<Vec<Task>> = Vec::new();
     let mut date = None;
@@ -108,6 +108,12 @@ impl Viewer {
     for t in tasks {
       if has_project_ids && !project_ids.contains(&t.project_id()) {
         continue;
+      }
+
+      if !tags.is_empty() {
+        if !t.tags().iter().any(|t| tags.contains(t)) {
+          continue;
+        }
       }
 
       let task_date = t.start_time().date();
@@ -124,9 +130,10 @@ impl Viewer {
     &self,
     period: chrono::Duration,
     project_ids: Option<HashSet<u128>>,
+    tags: &Vec<String>,
     show_full: bool,
   ) {
-    let by_dates = self.tasks_by_day(period, project_ids);
+    let by_dates = self.tasks_by_day(period, project_ids, tags);
     if by_dates.is_empty() {
       println!("no tasks to show");
       return;
