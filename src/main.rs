@@ -144,7 +144,7 @@ fn main() {
       let task_title = command_matches.value_of("task_title").unwrap();
       let tags = extract_tags("tags", command_matches);
 
-      match pomidorka.borrow_mut().start(project_name, task_title, tags) {
+      match { pomidorka.borrow_mut().start(project_name, task_title, tags) } {
         Ok(task) => {
           println!("Task started: ");
           viewer.log_task(&task, true);
@@ -154,7 +154,7 @@ fn main() {
     }
 
     Some("stop") => {
-      match pomidorka.borrow_mut().stop() {
+      match { pomidorka.borrow_mut().stop() } {
         Ok(task) => {
           println!("Task stopped:");
           viewer.log_task(&task, true);
@@ -328,7 +328,21 @@ fn edit(
 
     EditDataType::All => {
       let filepath = pomidorka.borrow().tasks_db_filepath().to_string();
-      subprocess::Exec::cmd(&editor).arg(filepath).join().unwrap();
+      let mut tasks_db_file = std::fs::File::options()
+        .write(true)
+        .read(true)
+        .open(&filepath)
+        .unwrap();
+
+      let all_tasks: serde_json::Value = serde_json::from_reader(&tasks_db_file).unwrap();
+
+      tasks_db_file.rewind().unwrap();
+      tasks_db_file.set_len(0).unwrap();
+
+      let edited_tasks = run_edit_and_get_result(&all_tasks, &mut tmp_file, &editor);
+      serde_json::to_writer(&tasks_db_file, &edited_tasks).unwrap();
+
+      println!("Edit finished, file saved");
     }
   };
 }
