@@ -27,6 +27,10 @@ impl Storage {
     self.tasks.storage_path()
   }
 
+  pub fn tags_filepath(&self) -> &str {
+    self.tags.storage_path()
+  }
+
   pub fn state(&self) -> State {
     State {
       last_task_id: self.tasks.last_id(),

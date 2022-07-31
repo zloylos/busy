@@ -160,6 +160,10 @@ impl Pomidorka {
     self.storage_.tasks_filepath()
   }
 
+  pub fn tags_db_filepath(&self) -> &str {
+    self.storage_.tags_filepath()
+  }
+
   fn add_project(&mut self, project_name: &str) -> Project {
     let project = Project::new(self.storage_.state().last_project_id + 1, project_name);
     self.storage_.add_project(&project);
