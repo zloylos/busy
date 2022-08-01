@@ -313,7 +313,7 @@ fn print_time_interval(
     "{}",
     format!(
       "{padding}  {start_time} to {stop_time} {task_description_padding} {task_description}",
-      padding = " ".repeat(5 + 4),
+      padding = " ".repeat(5 + 10),
       start_time = format_time(&time_interval.start_time),
       stop_time = stop_time_formatted.unwrap_or(format_time(
         &time_interval.stop_time.unwrap_or(chrono::Local::now())
