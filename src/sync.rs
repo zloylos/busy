@@ -11,7 +11,7 @@ impl GitSyncer {
     let mut obj = Self {
       main_folder_path: main_folder_path.to_owned(),
       remote,
-      branch: branch.unwrap_or("master".to_owned()),
+      branch: branch.unwrap_or("main".to_owned()),
     };
     _ = obj.init();
     return obj;
@@ -24,7 +24,7 @@ impl GitSyncer {
     {
       return self.set_remote();
     }
-    self.git_with_args(&["init"])?;
+    self.git_with_args(&["init", "-b", self.branch.clone().as_str()])?;
     _ = self.set_remote();
     _ = self.pull();
 
