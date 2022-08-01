@@ -273,7 +273,7 @@ mod test {
   fn storage_item_remove() {
     let mut storage = get_new_storage();
     let new_item = TestType::new("Hello");
-    let id = new_item.id();
+    let id = new_item.id().clone();
 
     storage.add(new_item);
     storage.remove(id.clone()).unwrap();
@@ -294,11 +294,11 @@ mod test {
   fn storage_item_replace() {
     let mut storage = get_new_storage();
     let item = TestType::new("Hello");
-    let id = item.id();
+    let id = item.id().clone();
     storage.add(item);
 
-    let new_item = TestType::new("Hello, world!");
-    new_item.id = id.clone();
+    let mut new_item = TestType::new("Hello, world!");
+    new_item.id = id;
 
     storage.replace(new_item).unwrap();
 
