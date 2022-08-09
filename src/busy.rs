@@ -1,7 +1,8 @@
 use log::debug;
 
 use crate::{
-  project::Project, storage::Storage, sync::GitSyncer, tag::Tag, task::Task, traits::Indexable,
+  project::Project, storage::Storage, sync::GitSyncer, sync::Syncer, tag::Tag, task::Task,
+  traits::Indexable,
 };
 
 const ENV_BUSY_DIR: &str = "BUSY_DIR";
@@ -48,18 +49,18 @@ impl Config {
 
 pub struct Busy {
   storage: Storage,
-  syncer: GitSyncer,
+  syncer: Box<dyn Syncer>,
   config: Config,
 }
 
 impl Busy {
   pub fn new() -> Self {
     let config = Config::init();
-    let syncer = GitSyncer::new(
+    let syncer = Box::new(GitSyncer::new(
       &config.storage_dir_path,
       config.git_remote.clone(),
       config.git_remote_branch.clone(),
-    );
+    ));
 
     Self {
       storage: Storage::new(&config.storage_dir_path),
@@ -117,10 +118,7 @@ impl Busy {
     let task = Task::new(project.id(), title, self.upsert_tags(tags));
     self.storage.add_task(&task);
 
-    self
-      .syncer
-      .commit(&format_task_commit("started", &task))
-      .unwrap();
+    self.commit(&format_task_commit("started", &task));
 
     return Ok(task);
   }
@@ -134,13 +132,9 @@ impl Busy {
     let mut active_task = maybe_active_task.unwrap();
     active_task.stop();
 
-    match self.storage.replace_task(active_task.clone()) {
+    match self.storage.replace_task(&active_task.clone()) {
       Ok(_) => {
-        self
-          .syncer
-          .commit(&format_task_commit("stopped", &active_task))
-          .unwrap();
-
+        self.commit(&format_task_commit("stopped", &active_task));
         Ok(active_task)
       }
       Err(err) => Err(err),
@@ -156,13 +150,9 @@ impl Busy {
     let mut active_task = maybe_active_task.unwrap();
     active_task.pause();
 
-    match self.storage.replace_task(active_task.clone()) {
+    match self.storage.replace_task(&active_task) {
       Ok(_) => {
-        self
-          .syncer
-          .commit(&format_task_commit("paused", &active_task))
-          .unwrap();
-
+        self.commit(&format_task_commit("paused", &active_task));
         Ok(active_task)
       }
       Err(err) => Err(err),
@@ -182,25 +172,37 @@ impl Busy {
       return Err(ERR_MSG.to_owned());
     }
     active_task.resume();
-    match self.storage.replace_task(active_task.clone()) {
+    match self.storage.replace_task(&active_task) {
       Ok(_) => {
-        self
-          .syncer
-          .commit(&format_task_commit("continue", &active_task))
-          .unwrap();
-
+        self.commit(&format_task_commit("continue", &active_task));
         Ok(active_task)
       }
       Err(err) => Err(err),
     }
   }
 
-  pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
-    self.storage.replace_task(task)
+  pub fn replace_task(&mut self, task: &Task) -> Result<(), String> {
+    match self.storage.replace_task(task) {
+      Ok(_) => {
+        self.commit(&format_task_commit("replace", &task));
+        return Ok(());
+      }
+      Err(err) => Err(err),
+    }
   }
 
-  pub fn replace_project(&mut self, project: Project) -> Result<(), String> {
-    self.storage.replace_project(project)
+  pub fn replace_project(&mut self, project: &Project) -> Result<(), String> {
+    match self.storage.replace_project(project) {
+      Ok(_) => {
+        self.commit(&format!(
+          "replace task, name: {} id: {}",
+          project.name(),
+          project.id()
+        ));
+        return Ok(());
+      }
+      Err(err) => Err(err),
+    }
   }
 
   pub fn remove_task(&mut self, task_id: uuid::Uuid) -> Result<(), String> {
@@ -227,7 +229,7 @@ impl Busy {
       .storage
       .tasks()
       .iter()
-      .find(|t| t.id() == &task_id)
+      .find(|t| t.id() == task_id)
       .map(|t| t.clone());
   }
 
@@ -252,7 +254,7 @@ impl Busy {
 
   pub fn tag_by_id(&self, tag_id: uuid::Uuid) -> Option<Tag> {
     self.storage.tags().iter().find_map(|c| {
-      if c.id() == &tag_id {
+      if c.id() == tag_id {
         return Some(c.clone());
       }
       return None;
@@ -263,7 +265,7 @@ impl Busy {
     self.storage.find_tag_by_names(tags)
   }
 
-  pub fn replace_tag(&mut self, tag: Tag) -> Result<(), String> {
+  pub fn replace_tag(&mut self, tag: &Tag) -> Result<(), String> {
     self.storage.replace_tag(tag)
   }
 
@@ -300,11 +302,18 @@ impl Busy {
 
   pub fn project_by_id(&self, project_id: uuid::Uuid) -> Option<Project> {
     self.storage.projects().iter().find_map(|c| {
-      if c.id() == &project_id {
+      if c.id() == project_id {
         return Some(c.clone());
       }
       return None;
     })
+  }
+
+  fn commit(&mut self, msg: &str) {
+    match self.syncer.commit(msg) {
+      Err(err) => println!("commit err: {} msg: {}", err, msg),
+      _ => {}
+    };
   }
 }
 

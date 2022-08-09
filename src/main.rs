@@ -441,7 +441,7 @@ fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, 
       let updated_task_view = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
       let updated_task = updated_task_view.to_task(&all_tags);
       viewer.log_task(&updated_task, true);
-      busy.borrow_mut().replace_task(updated_task).unwrap();
+      busy.borrow_mut().replace_task(&updated_task).unwrap();
     }
 
     EditDataType::Project => {
@@ -450,7 +450,7 @@ fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, 
 
       println!("{}", "Updated project: ".bright_yellow());
       viewer.print_project(&updated_project);
-      busy.borrow_mut().replace_project(updated_project).unwrap();
+      busy.borrow_mut().replace_project(&updated_project).unwrap();
     }
 
     EditDataType::Tag => {
@@ -459,7 +459,7 @@ fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, 
 
       println!("{}", "Updated tag: ".bright_yellow());
       viewer.print_tag(&updated_tag);
-      busy.borrow_mut().replace_tag(updated_tag).unwrap();
+      busy.borrow_mut().replace_tag(&updated_tag).unwrap();
     }
 
     EditDataType::AllTags => {
@@ -543,7 +543,7 @@ fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Durati
 fn restore_id_by_short_id(busy: Rc<RefCell<Busy>>, short_id: &str) -> Result<uuid::Uuid, String> {
   let ids = busy.borrow().ids();
   let item = ids.iter().find(|&id| {
-    let formatted_id = format_id(id);
+    let formatted_id = format_id(*id);
     return formatted_id == short_id;
   });
 

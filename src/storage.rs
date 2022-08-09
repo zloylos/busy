@@ -54,7 +54,7 @@ impl Storage {
     self.tasks.remove(task_id)
   }
 
-  pub fn replace_task(&mut self, task: Task) -> Result<(), String> {
+  pub fn replace_task(&mut self, task: &Task) -> Result<(), String> {
     self.tasks.replace(task)
   }
 
@@ -103,7 +103,7 @@ impl Storage {
     self.tags.all()
   }
 
-  pub fn replace_tag(&mut self, tag: Tag) -> Result<(), String> {
+  pub fn replace_tag(&mut self, tag: &Tag) -> Result<(), String> {
     self.tags.replace(tag)
   }
 
@@ -115,7 +115,7 @@ impl Storage {
     self.projects.all()
   }
 
-  pub fn replace_project(&mut self, project: Project) -> Result<(), String> {
+  pub fn replace_project(&mut self, project: &Project) -> Result<(), String> {
     self.projects.replace(project)
   }
 }
@@ -158,7 +158,7 @@ where
   }
 
   fn get_by_id(&self, id: uuid::Uuid) -> Option<&T> {
-    self.buffer.iter().find(|item| item.id() == &id)
+    self.buffer.iter().find(|item| item.id() == id)
   }
 
   fn restore(&mut self) {
@@ -183,13 +183,13 @@ where
     Ok(())
   }
 
-  fn replace(&mut self, item: T) -> Result<(), String> {
+  fn replace(&mut self, item: &T) -> Result<(), String> {
     let position = self.position_by_id(item.id().clone());
     if position.is_none() {
       return Err(format!("task with id: {} not found", item.id()));
     }
 
-    self.buffer[position.unwrap()] = item;
+    self.buffer[position.unwrap()] = item.clone();
     self.flush();
 
     Ok(())
@@ -200,7 +200,7 @@ where
   }
 
   fn position_by_id(&self, id: uuid::Uuid) -> Option<usize> {
-    self.buffer.iter().position(|item| item.id() == &id)
+    self.buffer.iter().position(|item| item.id() == id)
   }
 
   fn flush(&mut self) {
@@ -294,13 +294,13 @@ mod test {
   fn storage_item_replace() {
     let mut storage = get_new_storage();
     let item = TestType::new("Hello");
-    let id = item.id().clone();
+    let id = item.id();
     storage.add(item);
 
     let mut new_item = TestType::new("Hello, world!");
     new_item.id = id;
 
-    storage.replace(new_item).unwrap();
+    storage.replace(&new_item).unwrap();
 
     let all_items = storage.all();
     assert_eq!(all_items.len(), 1);

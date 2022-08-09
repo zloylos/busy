@@ -133,7 +133,7 @@ impl Viewer {
         if !task
           .tags()
           .iter()
-          .any(|t| tags.iter().position(|tag| tag.id() == t).is_some())
+          .any(|t| tags.iter().position(|tag| tag.id() == *t).is_some())
         {
           continue;
         }
@@ -273,7 +273,7 @@ impl Viewer {
   }
 }
 
-pub fn format_id(id: &uuid::Uuid) -> String {
+pub fn format_id(id: uuid::Uuid) -> String {
   let id_string = id.as_simple().to_string();
   format!(
     "{}..{}",

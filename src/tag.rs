@@ -7,8 +7,8 @@ pub struct Tag {
 }
 
 impl Indexable for Tag {
-  fn id(&self) -> &uuid::Uuid {
-    &self.id
+  fn id(&self) -> uuid::Uuid {
+    self.id
   }
 }
 

@@ -17,16 +17,16 @@ pub struct Task {
 }
 
 impl Indexable for Task {
-  fn id(&self) -> &uuid::Uuid {
-    &self.id
+  fn id(&self) -> uuid::Uuid {
+    self.id
   }
 }
 
 impl Task {
-  pub fn new(project_id: &uuid::Uuid, title: &str, tags: Vec<uuid::Uuid>) -> Self {
+  pub fn new(project_id: uuid::Uuid, title: &str, tags: Vec<uuid::Uuid>) -> Self {
     Self {
       id: uuid::Uuid::new_v4(),
-      project_id: project_id.clone(),
+      project_id,
       times: vec![DateTimeInterval {
         start_time: chrono::Local::now(),
         stop_time: None,
@@ -131,7 +131,7 @@ impl TaskView {
           .iter()
           .find(|t| t.name() == tag_name)
           .expect("add new tags unsupported yet");
-        return found_tag.id().clone();
+        return found_tag.id();
       })
       .collect();
 

@@ -7,8 +7,8 @@ pub struct Project {
 }
 
 impl Indexable for Project {
-  fn id(&self) -> &uuid::Uuid {
-    &self.id
+  fn id(&self) -> uuid::Uuid {
+    self.id
   }
 }
 
