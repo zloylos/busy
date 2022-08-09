@@ -415,7 +415,7 @@ fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile,
   db_file.rewind().unwrap();
   db_file.set_len(0).unwrap();
 
-  serde_json::to_writer(&db_file, &edited_data).unwrap();
+  serde_json::to_writer_pretty(&db_file, &edited_data).unwrap();
   println!("Edit finished, data were saved");
 }
 
