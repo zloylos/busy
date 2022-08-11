@@ -528,13 +528,12 @@ fn projects_to_ids_set(
 }
 
 fn get_period(subcommand_matches: &ArgMatches) -> chrono::Duration {
-  let period_days = subcommand_matches.value_of_t("days").ok();
   let show_today_only = subcommand_matches.is_present("today");
-
   if show_today_only {
     return get_duration_from_midnight();
   }
 
+  let period_days = subcommand_matches.value_of_t("days").ok();
   if period_days.is_none() {
     return get_duration_from_week_start();
   }
