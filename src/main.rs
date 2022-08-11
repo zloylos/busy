@@ -11,9 +11,9 @@ use std::{
   rc::Rc,
 };
 
-use chrono::{Datelike, Timelike};
 use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
+use duration::{get_duration, get_duration_from_midnight, get_duration_from_week_start};
 use log::debug;
 use task::TaskView;
 use traits::Indexable;
@@ -22,6 +22,7 @@ use viewer::{format_id, Viewer};
 use crate::{busy::Busy, task::Task};
 
 mod busy;
+mod duration;
 mod duration_fmt;
 mod project;
 mod storage;
@@ -68,6 +69,7 @@ fn build_cli() -> Command<'static> {
         .about("show today tasks, shortcut for `log --today`")
         .args(&[
           Arg::new("full").long("full"),
+          Arg::new("dont-clear").long("dont-clear"),
           Arg::new("project")
             .long("project")
             .multiple_values(true)
@@ -83,6 +85,7 @@ fn build_cli() -> Command<'static> {
         Arg::new("days").long("days").takes_value(true),
         Arg::new("full").long("full"),
         Arg::new("today").long("today"),
+        Arg::new("dont-clear").long("dont-clear"),
         Arg::new("project")
           .long("project")
           .multiple_values(true)
@@ -252,44 +255,27 @@ fn main() {
     }
 
     Some("log") => {
-      clear_screen();
       let subcommand_matches = matches.subcommand_matches("log").unwrap();
-      let show_full = subcommand_matches.is_present("full");
-      let show_today_only = subcommand_matches.is_present("today");
-      let project_names = subcommand_matches
-        .values_of_t("project")
-        .ok()
-        .unwrap_or_default();
-      let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
-      let tags = extract_tags("tag", subcommand_matches);
-      let found_tags = busy.borrow().find_tag_by_names(&tags);
-
-      let period_arg = subcommand_matches.value_of_t("days").ok();
-      let period = get_period(period_arg, show_today_only);
-
-      viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
+      show_tasks(
+        subcommand_matches,
+        Rc::clone(&busy),
+        &viewer,
+        get_period(subcommand_matches),
+      );
     }
 
     Some("today") => {
-      clear_screen();
-      let subcommand_matches = matches.subcommand_matches("today").unwrap();
-      let show_full = subcommand_matches.is_present("full");
-      let project_names = subcommand_matches
-        .values_of_t("project")
-        .ok()
-        .unwrap_or_default();
-      let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
-      let tags = extract_tags("tag", subcommand_matches);
-      let found_tags = busy.borrow().find_tag_by_names(&tags);
-
-      let period = get_period(None, true);
-      viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
+      show_tasks(
+        matches.subcommand_matches("today").unwrap(),
+        Rc::clone(&busy),
+        &viewer,
+        get_duration_from_midnight(),
+      );
     }
 
     Some("stat") => {
       clear_screen();
       let subcommand_matches = matches.subcommand_matches("stat").unwrap();
-      let show_today_only = subcommand_matches.is_present("today");
       let with_tags = subcommand_matches.is_present("with-tags");
       let project_names = subcommand_matches
         .values_of_t("project")
@@ -299,10 +285,12 @@ fn main() {
       let tags = extract_tags("tag", subcommand_matches);
       let found_tags = busy.borrow().find_tag_by_names(&tags);
 
-      let period_arg = subcommand_matches.value_of_t("days").ok();
-      let period = get_period(period_arg, show_today_only);
-
-      viewer.show_stat(period, project_ids, &found_tags, with_tags);
+      viewer.show_stat(
+        get_period(subcommand_matches),
+        project_ids,
+        &found_tags,
+        with_tags,
+      );
     }
 
     Some("rm") => {
@@ -364,6 +352,28 @@ fn main() {
 
     None => println!("subcommand not found"),
   };
+}
+
+fn show_tasks(
+  subcommand_matches: &ArgMatches,
+  busy: Rc<RefCell<Busy>>,
+  viewer: &Viewer,
+  period: chrono::Duration,
+) {
+  if !subcommand_matches.is_present("dont-clear") {
+    clear_screen();
+  }
+
+  let show_full = subcommand_matches.is_present("full");
+  let project_names = subcommand_matches
+    .values_of_t("project")
+    .ok()
+    .unwrap_or_default();
+  let project_ids = projects_to_ids_set(Rc::clone(&busy), project_names);
+  let tags = extract_tags("tag", subcommand_matches);
+  let found_tags = busy.borrow().find_tag_by_names(&tags);
+
+  viewer.log_tasks_list(period, project_ids, &found_tags, show_full);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -517,27 +527,19 @@ fn projects_to_ids_set(
   return Some(project_ids);
 }
 
-fn get_period(period_days: Option<i64>, show_today_only: bool) -> chrono::Duration {
-  let seconds_from_midnight = chrono::Duration::seconds(
-    chrono::Local::now()
-      .time()
-      .num_seconds_from_midnight()
-      .into(),
-  );
-
-  if period_days.is_some() {
-    return chrono::Duration::days(period_days.unwrap())
-      .checked_add(&seconds_from_midnight)
-      .unwrap();
-  }
+fn get_period(subcommand_matches: &ArgMatches) -> chrono::Duration {
+  let period_days = subcommand_matches.value_of_t("days").ok();
+  let show_today_only = subcommand_matches.is_present("today");
 
   if show_today_only {
-    return seconds_from_midnight;
+    return get_duration_from_midnight();
   }
 
-  return chrono::Duration::days(chrono::Local::now().weekday().num_days_from_monday() as i64)
-    .checked_add(&seconds_from_midnight)
-    .unwrap();
+  if period_days.is_none() {
+    return get_duration_from_week_start();
+  }
+
+  return get_duration(period_days.unwrap());
 }
 
 fn restore_id_by_short_id(busy: Rc<RefCell<Busy>>, short_id: &str) -> Result<uuid::Uuid, String> {
