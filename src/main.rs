@@ -13,7 +13,7 @@ use std::{
 
 use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
-use duration::{get_duration, get_duration_from_midnight, get_duration_from_week_start};
+use duration::{get_midnight_datetime, get_period_since_now, get_week_start_datetime, Period};
 use log::debug;
 use task::TaskView;
 use traits::Indexable;
@@ -269,7 +269,7 @@ fn main() {
         matches.subcommand_matches("today").unwrap(),
         Rc::clone(&busy),
         &viewer,
-        get_duration_from_midnight(),
+        Period::new_to_now(get_midnight_datetime()),
       );
     }
 
@@ -357,7 +357,7 @@ fn show_tasks(
   subcommand_matches: &ArgMatches,
   busy: Rc<RefCell<Busy>>,
   viewer: &Viewer,
-  period: chrono::Duration,
+  period: Period,
 ) {
   if !subcommand_matches.is_present("dont-clear") {
     clear_screen();
@@ -526,18 +526,18 @@ fn projects_to_ids_set(
   return Some(project_ids);
 }
 
-fn get_period(subcommand_matches: &ArgMatches) -> chrono::Duration {
+fn get_period(subcommand_matches: &ArgMatches) -> Period {
   let show_today_only = subcommand_matches.is_present("today");
   if show_today_only {
-    return get_duration_from_midnight();
+    return Period::new_to_now(get_midnight_datetime());
   }
 
   let period_days = subcommand_matches.value_of_t("days").ok();
   if period_days.is_none() {
-    return get_duration_from_week_start();
+    return Period::new_to_now(get_week_start_datetime());
   }
 
-  return get_duration(period_days.unwrap());
+  return Period::new_to_now(get_period_since_now(period_days.unwrap()));
 }
 
 fn restore_id_by_short_id(busy: Rc<RefCell<Busy>>, short_id: &str) -> Result<uuid::Uuid, String> {

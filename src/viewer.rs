@@ -8,6 +8,7 @@ use colored::{ColoredString, Colorize};
 
 use crate::{
   busy::Busy,
+  duration::Period,
   duration_fmt::{format_duration, format_duration_without_paddings},
   project::Project,
   tag::Tag,
@@ -46,7 +47,7 @@ impl Viewer {
 
   pub fn show_stat(
     &self,
-    period: chrono::Duration,
+    period: Period,
     project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
     with_tags: bool,
@@ -117,7 +118,7 @@ impl Viewer {
 
   fn tasks_by_day(
     &self,
-    period: chrono::Duration,
+    period: Period,
     maybe_project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
   ) -> Vec<Vec<Task>> {
@@ -158,7 +159,7 @@ impl Viewer {
 
   pub fn log_tasks_list(
     &self,
-    period: chrono::Duration,
+    period: Period,
     project_ids: Option<HashSet<uuid::Uuid>>,
     tags: &Vec<Tag>,
     show_full: bool,

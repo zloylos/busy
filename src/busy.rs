@@ -1,8 +1,8 @@
 use log::debug;
 
 use crate::{
-  project::Project, storage::Storage, sync::GitSyncer, sync::Syncer, tag::Tag, task::Task,
-  traits::Indexable,
+  duration::Period, project::Project, storage::Storage, sync::GitSyncer, sync::Syncer, tag::Tag,
+  task::Task, traits::Indexable,
 };
 
 const ENV_BUSY_DIR: &str = "BUSY_DIR";
@@ -209,13 +209,18 @@ impl Busy {
     self.storage.remove_task(task_id)
   }
 
-  pub fn tasks(&self, period: chrono::Duration) -> Vec<Task> {
-    let current_time = chrono::Local::now();
+  pub fn tasks(&self, period: Period) -> Vec<Task> {
     self
       .storage
       .tasks()
       .iter()
-      .filter(|t| current_time.signed_duration_since(t.start_time()) < period)
+      .filter(|t| {
+        let mut within_the_period = period.contains(&t.start_time());
+        if t.stop_time().is_some() {
+          within_the_period = within_the_period && period.contains(t.stop_time().as_ref().unwrap());
+        }
+        return within_the_period;
+      })
       .map(|t| t.clone())
       .collect()
   }
