@@ -57,7 +57,9 @@ impl Viewer {
       return;
     }
 
+    let mut total_duration = chrono::Duration::zero();
     for tasks in by_dates.iter() {
+      total_duration = total_duration + self.total_time(tasks);
       self.print_date(tasks);
       let mut project_times: BTreeMap<uuid::Uuid, chrono::Duration> = BTreeMap::new();
       let mut tag_times: HashMap<String, chrono::Duration> = HashMap::new();
@@ -106,6 +108,11 @@ impl Viewer {
         println!("");
       }
     }
+
+    println!(
+      "Total: {}",
+      format_duration_without_paddings(total_duration).bold()
+    );
   }
 
   fn tasks_by_day(

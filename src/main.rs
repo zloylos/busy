@@ -308,7 +308,6 @@ fn main() {
 
     Some("edit") => {
       let subcommand_matches = matches.subcommand_matches("edit").unwrap();
-
       if subcommand_matches.is_present("all-tags") {
         edit(
           Rc::clone(&busy),
