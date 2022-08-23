@@ -230,7 +230,7 @@ impl Viewer {
     println!(
       "{}",
       format!(
-        "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:10}  [{tags}]",
+        "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:10}  {tags}",
         padding = " ".repeat(5),
         task_id = format_id(task.id()),
         start_time = format_time(&first_interval.start_time).green(),
