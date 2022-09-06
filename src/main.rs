@@ -444,10 +444,15 @@ fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, 
   match edit_data_type {
     EditDataType::Task => {
       let task = busy.borrow().task_by_id(id).unwrap();
-      let all_tags = busy.borrow().tags();
+      let mut all_tags = busy.borrow().tags();
       let task_view = TaskView::from_task(&task, &all_tags);
 
       let updated_task_view = run_edit_and_get_result(&task_view, &mut tmp_file, &editor);
+
+      let new_tags = updated_task_view.resolve_new_tags(&all_tags);
+      busy.borrow_mut().upsert_tags(new_tags);
+      all_tags = busy.borrow().tags();
+
       let updated_task = updated_task_view.to_task(&all_tags);
       viewer.log_task(&updated_task, true);
       busy.borrow_mut().replace_task(&updated_task).unwrap();

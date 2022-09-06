@@ -88,7 +88,7 @@ impl Busy {
     self.storage.ids()
   }
 
-  fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<uuid::Uuid> {
+  pub fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<uuid::Uuid> {
     let mut pushed_ids = Vec::new();
     for tag in tags.iter() {
       match self.storage.find_tag_by_name(tag) {

@@ -121,6 +121,20 @@ impl TaskView {
     }
   }
 
+  pub fn resolve_new_tags(&self, existing_tags: &Vec<Tag>) -> Vec<String> {
+    let mut new_tags = vec![];
+    for tag_name in self.tags.iter() {
+      if existing_tags
+        .iter()
+        .find(|tag| tag.name() == tag_name)
+        .is_none()
+      {
+        new_tags.push(tag_name.to_owned());
+      }
+    }
+    return new_tags;
+  }
+
   pub fn to_task(&self, all_tags: &Vec<Tag>) -> Task {
     // TODO: upsert new tags after edit
     let tag_ids = self
