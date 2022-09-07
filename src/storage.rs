@@ -59,7 +59,9 @@ impl Storage {
   }
 
   pub fn tasks(&self) -> Vec<Task> {
-    self.tasks.all()
+    let mut tasks = self.tasks.all();
+    tasks.sort_by(|a, b| a.start_time().cmp(&b.start_time()));
+    return tasks;
   }
 
   pub fn find_tag_by_name(&self, tag: &str) -> Option<Tag> {
