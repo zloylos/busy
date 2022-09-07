@@ -145,6 +145,11 @@ fn build_cli() -> Command<'static> {
         .about("remove specific task")
         .args(&[Arg::new("task-id").index(1)]),
     )
+    .subcommand(
+      Command::new("continue")
+        .about("continue specific task (clone and start from now again")
+        .args(&[Arg::new("task-id").index(1)]),
+    )
     .subcommand(Command::new("projects").about("print all projects"))
     .subcommand(Command::new("tags").about("print all tags"))
     .subcommand(
@@ -374,6 +379,28 @@ fn main() {
       );
     }
 
+    Some("continue") => {
+      let subcommand_matches = matches.subcommand_matches("continue").unwrap();
+      let task_id_str = subcommand_matches.value_of("task-id").unwrap();
+      let task_id = restore_id_by_short_id(Rc::clone(&busy), task_id_str);
+      if task_id.is_err() {
+        println!(
+          "Continue parse short id into uuid error: {:?}",
+          task_id.err()
+        );
+        return;
+      }
+
+      let task = busy.borrow_mut().continue_task(task_id.unwrap());
+      if task.is_err() {
+        println!("Continue task error: {:?}", task.err());
+        return;
+      }
+
+      println!("Continue task:");
+      viewer.log_task(task.as_ref().unwrap(), true);
+    }
+
     Some("rm") => {
       let subcommand_matches = matches.subcommand_matches("rm").unwrap();
       let task_id: uuid::Uuid = subcommand_matches.value_of_t("task-id").unwrap();
@@ -381,7 +408,7 @@ fn main() {
       {
         let mut p = busy.borrow_mut();
         task = p.task_by_id(task_id).unwrap();
-        p.remove_task(task_id).unwrap();
+        p.remove_task(task.id()).unwrap();
       };
       println!("Removed task:");
       viewer.log_task(&task, true);

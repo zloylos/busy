@@ -210,6 +210,28 @@ impl Busy {
     }
   }
 
+  pub fn continue_task(&mut self, task_id: uuid::Uuid) -> Result<Task, String> {
+    if self.active_task().is_some() {
+      return Err("found active task, please stop it firstly".to_owned());
+    }
+
+    let maybe_task_to_continue = self.task_by_id(task_id);
+    if maybe_task_to_continue.is_none() {
+      return Err(format!("task with id: {} not found", task_id));
+    }
+    let existing_task = maybe_task_to_continue.unwrap();
+    let new_task = Task::new(
+      existing_task.project_id(),
+      existing_task.title(),
+      existing_task.tags().clone(),
+      None,
+      None,
+    );
+    self.storage.add_task(&new_task);
+    self.commit(&format_task_commit("continue", &new_task));
+    return Ok(new_task);
+  }
+
   pub fn replace_task(&mut self, task: &Task) -> Result<(), String> {
     match self.storage.replace_task(task) {
       Ok(_) => {
