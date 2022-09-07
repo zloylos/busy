@@ -47,7 +47,10 @@ fn build_cli() -> Command<'static> {
           .help("should be prefixed with `+` like: +my-tag1 +mytag2")
           .index(3)
           .multiple_values(true),
-        Arg::new("start-time").long("start-time").takes_value(true),
+        Arg::new("start-time")
+          .long("start-time")
+          .takes_value(true)
+          .help("override start-time, format: HH:MM"),
         // TODO(zloylos): support end-time arg
       ]),
     )
