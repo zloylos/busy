@@ -110,12 +110,13 @@ impl Busy {
     project_name: &str,
     title: &str,
     tags: Vec<String>,
+    start_time: Option<chrono::DateTime<chrono::Local>>,
   ) -> Result<Task, String> {
     if !self.active_task().is_none() {
       return Err("active task already exists, stop it firstly".to_string());
     }
     let project = self.upsert_project(project_name);
-    let task = Task::new(project.id(), title, self.upsert_tags(tags));
+    let task = Task::new(project.id(), title, self.upsert_tags(tags), start_time);
     self.storage.add_task(&task);
 
     self.commit(&format_task_commit("started", &task));

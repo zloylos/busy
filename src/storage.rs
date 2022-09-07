@@ -243,8 +243,8 @@ mod test {
   }
 
   impl Indexable for TestType {
-    fn id(&self) -> &uuid::Uuid {
-      &self.id
+    fn id(&self) -> uuid::Uuid {
+      self.id
     }
   }
 

@@ -23,12 +23,17 @@ impl Indexable for Task {
 }
 
 impl Task {
-  pub fn new(project_id: uuid::Uuid, title: &str, tags: Vec<uuid::Uuid>) -> Self {
+  pub fn new(
+    project_id: uuid::Uuid,
+    title: &str,
+    tags: Vec<uuid::Uuid>,
+    start_time: Option<chrono::DateTime<chrono::Local>>,
+  ) -> Self {
     Self {
       id: uuid::Uuid::new_v4(),
       project_id,
       times: vec![DateTimeInterval {
-        start_time: chrono::Local::now(),
+        start_time: start_time.unwrap_or(chrono::Local::now()),
         stop_time: None,
       }],
       title: title.to_owned(),
@@ -136,7 +141,6 @@ impl TaskView {
   }
 
   pub fn to_task(&self, all_tags: &Vec<Tag>) -> Task {
-    // TODO: upsert new tags after edit
     let tag_ids = self
       .tags
       .iter()

@@ -16,6 +16,7 @@ use colored::Colorize;
 use duration::{get_midnight_datetime, get_period_since_now, get_week_start_datetime, Period};
 use log::debug;
 use task::TaskView;
+use time::parse_datetime;
 use traits::Indexable;
 use viewer::{format_id, Viewer};
 
@@ -29,6 +30,7 @@ mod storage;
 mod sync;
 mod tag;
 mod task;
+mod time;
 mod traits;
 mod viewer;
 
@@ -45,6 +47,8 @@ fn build_cli() -> Command<'static> {
           .help("should be prefixed with `+` like: +my-tag1 +mytag2")
           .index(3)
           .multiple_values(true),
+        Arg::new("start-time").long("start-time").takes_value(true),
+        // TODO(zloylos): support end-time arg
       ]),
     )
     .subcommand(
@@ -178,8 +182,26 @@ fn main() {
       let project_name = command_matches.value_of("project_name").unwrap();
       let task_title = command_matches.value_of("task_title").unwrap();
       let tags = extract_tags("tags", command_matches);
+      let start_time_str = command_matches.value_of("start-time");
+      let mut start_time = None;
+      if start_time_str.is_some() {
+        let parsed_start_time = parse_datetime(start_time_str.unwrap());
+        if parsed_start_time.is_err() {
+          println!(
+            "Can't parse start-time parameter: {}, err: {:?}",
+            start_time_str.unwrap(),
+            parsed_start_time.err()
+          );
+          return;
+        }
+        start_time = Some(parsed_start_time.unwrap());
+      }
 
-      let started_task_result = { busy.borrow_mut().start(project_name, task_title, tags) };
+      let started_task_result = {
+        busy
+          .borrow_mut()
+          .start(project_name, task_title, tags, start_time)
+      };
       match started_task_result {
         Ok(task) => {
           println!("Task started: ");
