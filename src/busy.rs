@@ -105,6 +105,28 @@ impl Busy {
     return pushed_ids;
   }
 
+  pub fn add(
+    &mut self,
+    project_name: &str,
+    title: &str,
+    tags: Vec<String>,
+    start_time: chrono::DateTime<chrono::Local>,
+    finish_time: chrono::DateTime<chrono::Local>,
+  ) -> Result<Task, String> {
+    let project = self.upsert_project(project_name);
+    let task = Task::new(
+      project.id(),
+      title,
+      self.upsert_tags(tags),
+      Some(start_time),
+      Some(finish_time),
+    );
+    self.storage.add_task(&task);
+
+    self.commit(&format_task_commit("started", &task));
+    return Ok(task);
+  }
+
   pub fn start(
     &mut self,
     project_name: &str,
@@ -116,7 +138,13 @@ impl Busy {
       return Err("active task already exists, stop it firstly".to_string());
     }
     let project = self.upsert_project(project_name);
-    let task = Task::new(project.id(), title, self.upsert_tags(tags), start_time);
+    let task = Task::new(
+      project.id(),
+      title,
+      self.upsert_tags(tags),
+      start_time,
+      None,
+    );
     self.storage.add_task(&task);
 
     self.commit(&format_task_commit("started", &task));

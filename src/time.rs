@@ -8,6 +8,7 @@ pub fn parse_datetime(datetime: &str) -> ParseResult<chrono::DateTime<chrono::Lo
   return chrono::Local.datetime_from_str(&input, "%Y-%m-%d %H:%M");
 }
 
+#[cfg(test)]
 mod tests {
   use crate::time::parse_datetime;
 

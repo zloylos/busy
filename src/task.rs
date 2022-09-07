@@ -28,13 +28,14 @@ impl Task {
     title: &str,
     tags: Vec<uuid::Uuid>,
     start_time: Option<chrono::DateTime<chrono::Local>>,
+    finish_time: Option<chrono::DateTime<chrono::Local>>,
   ) -> Self {
     Self {
       id: uuid::Uuid::new_v4(),
       project_id,
       times: vec![DateTimeInterval {
         start_time: start_time.unwrap_or(chrono::Local::now()),
-        stop_time: None,
+        stop_time: finish_time,
       }],
       title: title.to_owned(),
       tags,

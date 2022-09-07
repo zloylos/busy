@@ -40,6 +40,26 @@ fn build_cli() -> Command<'static> {
     .arg_required_else_help(true)
     .trailing_var_arg(true)
     .subcommand(
+      Command::new("add").about("add finished task").args(&[
+        Arg::new("project_name").required(true).index(1),
+        Arg::new("task_title").required(true).index(2),
+        Arg::new("tags")
+          .help("should be prefixed with `+` like: +my-tag1 +mytag2")
+          .index(3)
+          .multiple_values(true),
+        Arg::new("start-time")
+          .long("start-time")
+          .required(true)
+          .takes_value(true)
+          .help("task start-time, format: HH:MM or YYYY-mm-dd HH:MM"),
+        Arg::new("finish-time")
+          .long("finish-time")
+          .required(true)
+          .takes_value(true)
+          .help("task finish-time, format: HH:MM or YYYY-mm-dd HH:MM"),
+      ]),
+    )
+    .subcommand(
       Command::new("start").about("start new task").args(&[
         Arg::new("project_name").required(true).index(1),
         Arg::new("task_title").required(true).index(2),
@@ -177,6 +197,42 @@ fn main() {
         None => {
           println!("There are no active tasks");
         }
+      };
+    }
+
+    Some("add") => {
+      let command_matches = matches.subcommand_matches("add").unwrap();
+      let project_name = command_matches.value_of("project_name").unwrap();
+      let task_title = command_matches.value_of("task_title").unwrap();
+      let tags = extract_tags("tags", command_matches);
+
+      let start_time = parse_datetime(command_matches.value_of("start-time").unwrap());
+      let finish_time = parse_datetime(command_matches.value_of("finish-time").unwrap());
+
+      if start_time.is_err() || finish_time.is_err() {
+        println!(
+          "failed to parse start or finish time: {:?} {:?}",
+          start_time.err(),
+          finish_time.err()
+        );
+        return;
+      }
+
+      let started_task_result = {
+        busy.borrow_mut().add(
+          project_name,
+          task_title,
+          tags,
+          start_time.unwrap(),
+          finish_time.unwrap(),
+        )
+      };
+      match started_task_result {
+        Ok(task) => {
+          println!("Task added: ");
+          viewer.log_task(&task, true);
+        }
+        Err(err) => println!("add task err: {}", err),
       };
     }
 
