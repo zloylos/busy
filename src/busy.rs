@@ -123,7 +123,7 @@ impl Busy {
     );
     self.storage.add_task(&task);
 
-    self.commit(&format_task_commit("started", &task));
+    self.commit(&format_task_commit("added", &task));
     return Ok(task);
   }
 
