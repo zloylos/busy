@@ -141,14 +141,14 @@ fn build_cli() -> Command<'static> {
         ]),
     )
     .subcommand(
-      Command::new("rm")
-        .about("remove specific task")
-        .args(&[Arg::new("task-id").index(1)]),
-    )
-    .subcommand(
       Command::new("continue")
         .about("continue specific task (clone and start from now again")
-        .args(&[Arg::new("task-id").index(1)]),
+        .args(&[Arg::new("short-task-id").index(1)]),
+    )
+    .subcommand(
+      Command::new("rm")
+        .about("remove specific task")
+        .args(&[Arg::new("short-task-id").index(1)]),
     )
     .subcommand(Command::new("projects").about("print all projects"))
     .subcommand(Command::new("tags").about("print all tags"))
@@ -381,8 +381,8 @@ fn main() {
 
     Some("continue") => {
       let subcommand_matches = matches.subcommand_matches("continue").unwrap();
-      let task_id_str = subcommand_matches.value_of("task-id").unwrap();
-      let task_id = restore_id_by_short_id(Rc::clone(&busy), task_id_str);
+      let short_task_id = subcommand_matches.value_of("short-task-id").unwrap();
+      let task_id = restore_id_by_short_id(Rc::clone(&busy), short_task_id);
       if task_id.is_err() {
         println!(
           "Continue parse short id into uuid error: {:?}",
@@ -403,11 +403,17 @@ fn main() {
 
     Some("rm") => {
       let subcommand_matches = matches.subcommand_matches("rm").unwrap();
-      let task_id: uuid::Uuid = subcommand_matches.value_of_t("task-id").unwrap();
+      let short_task_id = subcommand_matches.value_of("short-task-id").unwrap();
+      let task_id = restore_id_by_short_id(Rc::clone(&busy), short_task_id);
+      if task_id.is_err() {
+        println!("Parse short id into uuid error: {:?}", task_id.err());
+        return;
+      }
+
       let task: Task;
       {
         let mut p = busy.borrow_mut();
-        task = p.task_by_id(task_id).unwrap();
+        task = p.task_by_id(task_id.unwrap()).unwrap();
         p.remove_task(task.id()).unwrap();
       };
       println!("Removed task:");
