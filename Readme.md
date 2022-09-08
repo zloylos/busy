@@ -1,6 +1,6 @@
 # Simple CLI time tracker
 
-[![asciicast](https://asciinema.org/a/T43YMPNYb2oEGmZXMzEGISU9M.svg)](https://asciinema.org/a/T43YMPNYb2oEGmZXMzEGISU9M)
+[![asciicast](.github/media/screenshot.png)](https://asciinema.org/a/WuIMSZ4mEIDa4yScWPPUykvkW)
 
 Busy is the time tracker which helps you to manage daily routine and remember next day what you did.
 
