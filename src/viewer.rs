@@ -46,8 +46,8 @@ macro_rules! sum_pads {
   };
 }
 
-struct TaskViewPaddings {}
-impl TaskViewPaddings {
+struct ViewPaddings {}
+impl ViewPaddings {
   pub const PAD: Padding = Padding(2);
   pub const LINE_INDENT: Padding = Padding(4);
   // `dfcf..d73b`
@@ -79,7 +79,11 @@ impl Viewer {
   }
 
   pub fn print_tag(&self, tag: &Tag) {
-    println!("id: {}, {}", format_id(tag.id()), tag.name());
+    println!(
+      "id: {id}, {tag_name}",
+      id = format_id(tag.id()),
+      tag_name = tag.name()
+    );
   }
 
   pub fn print_tags(&self) {
@@ -89,7 +93,11 @@ impl Viewer {
   }
 
   pub fn print_project(&self, project: &Project) {
-    println!("id: {}, {}", format_id(project.id()), project.name());
+    println!(
+      "id: {id}, {project_name}",
+      id = format_id(project.id()),
+      project_name = project.name()
+    );
   }
 
   pub fn print_projects(&self) {
@@ -152,10 +160,11 @@ impl Viewer {
         }
 
         println!(
-          "  {}: {}{}",
-          self.get_project_name(project_id).green(),
-          format_duration_without_paddings(project_time).bold(),
-          tags_str
+          "{indent}{project_name}: {duration}{tags}",
+          indent = ViewPaddings::LINE_INDENT,
+          project_name = self.get_project_name(project_id).green(),
+          duration = format_duration_without_paddings(project_time).bold(),
+          tags = tags_str
         );
       }
       if !with_tags {
@@ -164,8 +173,8 @@ impl Viewer {
     }
 
     println!(
-      "Total: {}",
-      format_duration_without_paddings(total_duration).bold()
+      "Total: {duration}",
+      duration = format_duration_without_paddings(total_duration).bold()
     );
   }
 
@@ -244,9 +253,9 @@ impl Viewer {
     let date = tasks.first().unwrap().start_time().date();
     let total_time = self.total_time(tasks);
     println!(
-      "{} — {}",
-      date.format("%A, %d %B %Y").to_string().bold().cyan(),
-      format_duration_without_paddings(total_time)
+      "{date} — {duration}",
+      date = date.format("%A, %d %B %Y").to_string().bold().cyan(),
+      duration = format_duration_without_paddings(total_time)
         .bold()
         .bright_yellow()
     );
@@ -276,8 +285,8 @@ impl Viewer {
     let time_frames = get_formatted_time_intervals(task);
     println!(
       "{line_indent}{task_id}{pad}{time_frame}{pad}{duration:7}{pad}{project:10}{pad}{tags}",
-      line_indent = TaskViewPaddings::LINE_INDENT,
-      pad = TaskViewPaddings::PAD,
+      line_indent = ViewPaddings::LINE_INDENT,
+      pad = ViewPaddings::PAD,
       task_id = format_id(task.id()),
       time_frame = time_frames.first().unwrap(),
       duration = format_duration(task.duration()),
@@ -294,15 +303,15 @@ impl Viewer {
       for time_frame in time_frames.iter().skip(1) {
         println!(
           "{padding}{time_frame}{task_description_padding}{description}",
-          padding = TaskViewPaddings::TILL_TIME_FRAME,
-          task_description_padding = TaskViewPaddings::FROM_DURATION_TILL_DESCRIPTION,
+          padding = ViewPaddings::TILL_TIME_FRAME,
+          task_description_padding = ViewPaddings::FROM_DURATION_TILL_DESCRIPTION,
           description = task_description.take().unwrap_or_default()
         );
       }
     } else if task_description.is_some() {
       println!(
         "{padding}{description}",
-        padding = TaskViewPaddings::TILL_PROJECT,
+        padding = ViewPaddings::TILL_PROJECT,
         description = task_description.take().unwrap_or_default()
       );
     }
@@ -361,16 +370,15 @@ fn format_time_frame(
   stop_time_color: Color,
 ) -> String {
   format!(
-    "{} to {}",
-    format_time(&time_interval.start_time).color(start_time_color),
-    format_time(&time_interval.stop_time.unwrap_or(chrono::Local::now())).color(stop_time_color)
+    "{start_time} to {stop_time}",
+    start_time = format_time(&time_interval.start_time, start_time_color),
+    stop_time = format_time(
+      &time_interval.stop_time.unwrap_or(chrono::Local::now()),
+      stop_time_color
+    )
   )
 }
 
-fn format_time(time: &chrono::DateTime<chrono::Local>) -> ColoredString {
-  return time
-    .naive_local()
-    .format("%H:%M")
-    .to_string()
-    .bright_magenta();
+fn format_time(time: &chrono::DateTime<chrono::Local>, color: Color) -> ColoredString {
+  return time.naive_local().format("%H:%M").to_string().color(color);
 }
