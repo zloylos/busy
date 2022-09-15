@@ -151,9 +151,10 @@ impl Viewer {
         if with_tags {
           for tag in project_to_tags.entry(project_id).or_default().iter() {
             tags_str += &format!(
-              "\n    + {}: {}",
-              tag.bright_yellow().bold(),
-              format_duration_without_paddings(*tag_times.get(tag).unwrap())
+              "\n{indent}+ {tag_name}: {duration}",
+              indent = ViewPaddings::LINE_INDENT,
+              tag_name = tag.bright_yellow().bold(),
+              duration = format_duration_without_paddings(*tag_times.get(tag).unwrap())
             );
           }
           tags_str += "\n";
