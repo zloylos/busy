@@ -1,4 +1,6 @@
 extern crate chrono;
+extern crate clap;
+extern crate clap_complete;
 extern crate colored;
 extern crate serde;
 extern crate serde_json;
@@ -11,31 +13,22 @@ use std::{
   rc::Rc,
 };
 
+use busy::{
+  duration::{get_midnight_datetime, get_period_since_now, get_week_start_datetime, Period},
+  Busy,
+};
+
+use busy::task::Task;
+use busy::task::TaskView;
+use busy::time::parse_datetime;
+use busy::traits::Indexable;
+use busy::viewer::{format_id, Viewer};
 use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
-use duration::{get_midnight_datetime, get_period_since_now, get_week_start_datetime, Period};
 use log::debug;
-use task::TaskView;
-use time::parse_datetime;
-use traits::Indexable;
-use viewer::{format_id, Viewer};
-
-use crate::{busy::Busy, task::Task};
-
-mod busy;
-mod duration;
-mod duration_fmt;
-mod project;
-mod storage;
-mod sync;
-mod tag;
-mod task;
-mod time;
-mod traits;
-mod viewer;
 
 fn build_cli() -> Command<'static> {
-  Command::new("busy")
+  let command = Command::new("busy")
     .about("Simple CLI time tracker")
     .arg_required_else_help(true)
     .trailing_var_arg(true)
@@ -71,7 +64,6 @@ fn build_cli() -> Command<'static> {
           .long("start-time")
           .takes_value(true)
           .help("override start-time, format: HH:MM"),
-        // TODO(zloylos): support end-time arg
       ]),
     )
     .subcommand(
@@ -169,7 +161,8 @@ fn build_cli() -> Command<'static> {
           .multiple_occurrences(true)
           .takes_value(true),
       ]),
-    )
+    );
+  return command;
 }
 
 fn main() {

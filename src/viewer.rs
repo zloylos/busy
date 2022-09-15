@@ -1,10 +1,11 @@
 use std::{
   cell::RefCell,
   collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+  fmt::Display,
   rc::Rc,
 };
 
-use colored::{ColoredString, Colorize};
+use colored::{Color, ColoredString, Colorize};
 
 use crate::{
   busy::Busy,
@@ -15,6 +16,58 @@ use crate::{
   task::{self, DateTimeInterval, Task},
   traits::Indexable,
 };
+
+#[derive(Clone, Copy)]
+struct Padding(usize);
+impl Padding {
+  pub fn size(self) -> usize {
+    self.0
+  }
+  pub fn string(self) -> String {
+    " ".repeat(self.size())
+  }
+}
+
+impl Display for Padding {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.string())
+  }
+}
+
+macro_rules! sum_pads {
+  ($($p:expr), *) => {
+    {
+      let mut sum = 0;
+      $(
+        sum += $p.0;
+      )*
+      Padding(sum)
+    }
+  };
+}
+
+struct TaskViewPaddings {}
+impl TaskViewPaddings {
+  pub const PAD: Padding = Padding(2);
+  pub const LINE_INDENT: Padding = Padding(4);
+  // `dfcf..d73b`
+  pub const ID: Padding = Padding(10);
+  // `12h 12m to 12h 12m`
+  pub const TIME_FRAME: Padding = Padding(5 + 1 + 2 + 1 + 5);
+  // `12h 12m`
+  pub const DURATION: Padding = Padding(3 + 1 + 3);
+  // `work` etc
+  pub const TILL_TIME_FRAME: Padding = sum_pads!(Self::LINE_INDENT, Self::ID, Self::PAD);
+  pub const TILL_PROJECT: Padding = sum_pads!(
+    Self::TILL_TIME_FRAME,
+    Self::TIME_FRAME,
+    Self::PAD,
+    Self::DURATION,
+    Self::PAD
+  );
+  pub const FROM_DURATION_TILL_DESCRIPTION: Padding =
+    sum_pads!(Self::PAD, Self::DURATION, Self::PAD);
+}
 
 pub struct Viewer {
   busy: Rc<RefCell<Busy>>,
@@ -214,68 +267,43 @@ impl Viewer {
       .collect();
 
     let tags_str = tags.join(", ");
-
-    let first_interval = task.times().first().unwrap();
-    let first_stop_time = match task.times().len() > 1 {
-      true => format_time(&first_interval.stop_time.unwrap()),
-      false => format_stop_time(task, first_interval.stop_time),
-    };
-
     let project_name = self.get_project_name(task.project_id());
     let mut project_name_msg = project_name.as_str().red();
     if task.is_paused() {
       project_name_msg = (project_name + " [paused]").yellow();
     }
 
+    let time_frames = get_formatted_time_intervals(task);
     println!(
-      "{}",
-      format!(
-        "{padding}{task_id:04}  {start_time} to {stop_time} {duration:11}  {project:10}  {tags}",
-        padding = " ".repeat(5),
-        task_id = format_id(task.id()),
-        start_time = format_time(&first_interval.start_time).green(),
-        stop_time = first_stop_time,
-        duration = format_duration(task.duration()),
-        project = project_name_msg,
-        tags = tags_str.italic()
-      )
+      "{line_indent}{task_id}{pad}{time_frame}{pad}{duration:7}{pad}{project:10}{pad}{tags}",
+      line_indent = TaskViewPaddings::LINE_INDENT,
+      pad = TaskViewPaddings::PAD,
+      task_id = format_id(task.id()),
+      time_frame = time_frames.first().unwrap(),
+      duration = format_duration(task.duration()),
+      project = project_name_msg,
+      tags = tags_str.italic()
     );
 
-    let task_description = task.title().dimmed().italic();
-    if task.times().len() > 1 {
-      let mut task_description_printed = !show_full;
+    let mut task_description = match show_full {
+      true => Some(task.title().dimmed().italic()),
+      false => None,
+    };
 
-      let mut time_iter = task.times().iter().skip(1);
-      let last_interval = time_iter.next_back();
-
-      for time_interval in time_iter {
-        print_time_interval(
-          time_interval,
-          Some(format_time(&time_interval.stop_time.unwrap())),
-          match task_description_printed {
-            true => None,
-            false => Some(task_description.clone()),
-          },
-        );
-        task_description_printed = true;
-      }
-
-      if let Some(last_interval) = last_interval {
-        print_time_interval(
-          last_interval,
-          Some(format_stop_time(task, last_interval.stop_time)),
-          match task_description_printed {
-            true => None,
-            false => Some(task_description.clone()),
-          },
+    if time_frames.len() > 1 {
+      for time_frame in time_frames.iter().skip(1) {
+        println!(
+          "{padding}{time_frame}{task_description_padding}{description}",
+          padding = TaskViewPaddings::TILL_TIME_FRAME,
+          task_description_padding = TaskViewPaddings::FROM_DURATION_TILL_DESCRIPTION,
+          description = task_description.take().unwrap_or_default()
         );
       }
-    } else if show_full {
-      const DESCRIPTION_SIZE: usize = 10;
+    } else if task_description.is_some() {
       println!(
-        "{}{}",
-        " ".repeat(DESCRIPTION_SIZE + 4 + 32),
-        task_description
+        "{padding}{description}",
+        padding = TaskViewPaddings::TILL_PROJECT,
+        description = task_description.take().unwrap_or_default()
       );
     }
   }
@@ -290,18 +318,53 @@ pub fn format_id(id: uuid::Uuid) -> String {
   )
 }
 
-fn format_stop_time(
-  task: &Task,
-  stop_time: Option<chrono::DateTime<chrono::Local>>,
-) -> ColoredString {
-  let stop_time_msg = format_time(&stop_time.unwrap_or(chrono::Local::now()));
-  if stop_time.is_some() {
-    if task.is_paused() {
-      return stop_time_msg.bold().italic().bright_red();
+fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
+  let interval_count = task.times().len();
+  let mut formatted_time_frames = Vec::new();
+  for i in 0..interval_count {
+    let time_frame = task.times()[i].clone();
+
+    let is_first = i == 0;
+    let is_last = i == interval_count - 1;
+
+    let mut start_color = Color::Green;
+    let mut stop_color = Color::Green;
+    if !is_first && !is_last {
+      start_color = Color::Magenta;
+      stop_color = Color::Magenta;
+    } else if is_last {
+      if !is_first {
+        start_color = Color::Magenta;
+      }
+      if task.is_paused() {
+        stop_color = Color::Red;
+      }
+    } else if is_first {
+      stop_color = Color::Magenta;
     }
-    return stop_time_msg.green();
+
+    formatted_time_frames.push(format_time_frame(
+      &time_frame,
+      start_color,
+      match time_frame.stop_time.is_some() {
+        true => stop_color,
+        false => Color::Yellow,
+      },
+    ));
   }
-  return stop_time_msg.yellow();
+  return formatted_time_frames;
+}
+
+fn format_time_frame(
+  time_interval: &DateTimeInterval,
+  start_time_color: Color,
+  stop_time_color: Color,
+) -> String {
+  format!(
+    "{} to {}",
+    format_time(&time_interval.start_time).color(start_time_color),
+    format_time(&time_interval.stop_time.unwrap_or(chrono::Local::now())).color(stop_time_color)
+  )
 }
 
 fn format_time(time: &chrono::DateTime<chrono::Local>) -> ColoredString {
@@ -310,24 +373,4 @@ fn format_time(time: &chrono::DateTime<chrono::Local>) -> ColoredString {
     .format("%H:%M")
     .to_string()
     .bright_magenta();
-}
-
-fn print_time_interval(
-  time_interval: &DateTimeInterval,
-  stop_time_formatted: Option<ColoredString>,
-  task_description: Option<ColoredString>,
-) {
-  println!(
-    "{}",
-    format!(
-      "{padding}  {start_time} to {stop_time} {task_description_padding} {task_description}",
-      padding = " ".repeat(5 + 10),
-      start_time = format_time(&time_interval.start_time),
-      stop_time = stop_time_formatted.unwrap_or(format_time(
-        &time_interval.stop_time.unwrap_or(chrono::Local::now())
-      )),
-      task_description_padding = " ".repeat(13),
-      task_description = task_description.unwrap_or_default()
-    )
-  );
 }
