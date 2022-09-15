@@ -3,9 +3,9 @@ pub fn format_duration(duration: chrono::Duration) -> String {
   let minutes = duration.num_minutes();
 
   return format!(
-    "{} {}",
-    format_number(hours, "h"),
-    format_number_force(minutes % 60, "m")
+    "{hours} {minutes}",
+    hours = format_number(hours, "h"),
+    minutes = format_number_force(minutes % 60, "m")
   );
 }
 
@@ -14,9 +14,9 @@ pub fn format_duration_without_paddings(duration: chrono::Duration) -> String {
   let minutes = duration.num_minutes();
 
   return format!(
-    "{}{}",
-    format_number_without_paddings(hours, "h"),
-    format_number_without_paddings(minutes % 60, "m"),
+    "{hours}{minutes}",
+    hours = format_number_without_paddings(hours, "h"),
+    minutes = format_number_force(minutes % 60, "m"),
   );
 }
 
