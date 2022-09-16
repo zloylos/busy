@@ -60,7 +60,7 @@ impl ViewPaddings {
   pub const DURATION: Padding = sum_pads!(Self::DURATION_PART, Self::SPACE, Self::DURATION_PART);
   // `HH:mm`
   pub const TIME: Padding = Padding(5);
-  // `12h 12m to 12h 12m`
+  // `HH:mm to HH:mm`
   pub const TIME_FRAME: Padding = sum_pads!(
     Self::TIME,
     Self::SPACE,
