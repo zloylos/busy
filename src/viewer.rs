@@ -288,7 +288,7 @@ impl Viewer {
       "{line_indent}{task_id}{pad}{time_frame}{pad}{duration:7}{pad}{project:10}{pad}{tags}",
       line_indent = ViewPaddings::LINE_INDENT,
       pad = ViewPaddings::PAD,
-      task_id = format_id(task.id()).black(),
+      task_id = format_id(task.id()).bright_black(),
       time_frame = time_frames.first().unwrap(),
       duration = format_duration(task.duration()),
       project = project_name_msg,
