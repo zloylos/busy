@@ -64,10 +64,7 @@ impl Task {
   pub fn duration(&self) -> chrono::Duration {
     let mut total_duration = chrono::Duration::zero();
     for interval in self.times.iter() {
-      let stop_time = interval.stop_time.unwrap_or(chrono::Local::now());
-      total_duration = total_duration
-        .checked_add(&stop_time.signed_duration_since(interval.start_time))
-        .unwrap();
+      total_duration = total_duration.checked_add(&interval.duration()).unwrap();
     }
     return total_duration;
   }
