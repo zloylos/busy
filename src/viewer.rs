@@ -66,8 +66,6 @@ impl ViewPaddings {
     Self::DURATION,
     Self::PAD
   );
-  pub const FROM_DURATION_TILL_DESCRIPTION: Padding =
-    sum_pads!(Self::PAD, Self::DURATION, Self::PAD);
 }
 
 pub struct Viewer {
@@ -303,9 +301,9 @@ impl Viewer {
     if time_frames.len() > 1 {
       for time_frame in time_frames.iter().skip(1) {
         println!(
-          "{padding}{time_frame}{task_description_padding}{description}",
-          padding = ViewPaddings::TILL_TIME_FRAME,
-          task_description_padding = ViewPaddings::FROM_DURATION_TILL_DESCRIPTION,
+          "{padding_till_frame}{time_frame}{pad}{description}",
+          padding_till_frame = ViewPaddings::TILL_TIME_FRAME,
+          pad = ViewPaddings::PAD,
           description = task_description.take().unwrap_or_default()
         );
       }
