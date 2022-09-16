@@ -58,13 +58,15 @@ impl ViewPaddings {
   pub const DURATION_PART: Padding = Padding(3);
   // `12h 12m`
   pub const DURATION: Padding = sum_pads!(Self::DURATION_PART, Self::SPACE, Self::DURATION_PART);
+  // `HH:mm`
+  pub const TIME: Padding = Padding(5);
   // `12h 12m to 12h 12m`
   pub const TIME_FRAME: Padding = sum_pads!(
-    Self::DURATION,
+    Self::TIME,
     Self::SPACE,
     Padding(2), // `to`
     Self::SPACE,
-    Self::DURATION
+    Self::TIME
   );
   pub const TILL_TIME_FRAME: Padding = sum_pads!(Self::LINE_INDENT, Self::ID, Self::PAD);
   pub const TILL_PROJECT: Padding = sum_pads!(
