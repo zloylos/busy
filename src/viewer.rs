@@ -76,6 +76,27 @@ impl ViewPaddings {
   );
 }
 
+struct ViewColors {}
+impl ViewColors {
+  const ID: Color = Color::BrightBlack;
+
+  const TASK_PROJECT_NAME: Color = Color::Red;
+  const TASK_PAUSED_PROJECT_NAME: Color = Color::Yellow;
+  const TASK_TAG: Color = Color::Cyan;
+  const TASK_ADDITIONAL_DURATION: Color = Color::BrightBlack;
+
+  const TIME: Color = Color::Green;
+  const TIME_ACTIVE: Color = Color::Yellow;
+  const TIME_PAUSED: Color = Color::Red;
+  const TIME_ADDITIONAL: Color = Color::Magenta;
+
+  const STAT_PROJECT: Color = Color::Green;
+  const STAT_TAG: Color = Color::BrightYellow;
+
+  const HEADER_DATE: Color = Color::Cyan;
+  const HEADER_DURATION: Color = Color::BrightYellow;
+}
+
 pub struct Viewer {
   busy: Rc<RefCell<Busy>>,
 }
@@ -85,32 +106,34 @@ impl Viewer {
     Self { busy }
   }
 
-  pub fn print_tag(&self, tag: &Tag) {
-    println!(
-      "id: {id}, {tag_name}",
-      id = format_id(tag.id()),
-      tag_name = tag.name()
-    );
-  }
-
   pub fn print_tags(&self) {
     for tag in self.busy.borrow().tags() {
       self.print_tag(&tag);
     }
   }
 
-  pub fn print_project(&self, project: &Project) {
-    println!(
-      "id: {id}, {project_name}",
-      id = format_id(project.id()),
-      project_name = project.name()
-    );
-  }
-
   pub fn print_projects(&self) {
     for project in self.busy.borrow().projects() {
       self.print_project(&project);
     }
+  }
+
+  pub fn print_tag(&self, tag: &Tag) {
+    println!(
+      "{pad}{id}{pad}{tag_name}",
+      pad = ViewPaddings::PAD,
+      id = format_id_with_color(tag.id()),
+      tag_name = tag.name()
+    );
+  }
+
+  pub fn print_project(&self, project: &Project) {
+    println!(
+      "{pad}{id}{pad}{project_name}",
+      pad = ViewPaddings::PAD,
+      id = format_id_with_color(project.id()),
+      project_name = project.name()
+    );
   }
 
   pub fn show_stat(
@@ -129,7 +152,7 @@ impl Viewer {
     let mut total_duration = chrono::Duration::zero();
     for tasks in by_dates.iter() {
       total_duration = total_duration + self.total_time(tasks);
-      self.print_date(tasks);
+      self.print_header(tasks);
       let mut project_times: BTreeMap<uuid::Uuid, chrono::Duration> = BTreeMap::new();
       let mut tag_times: HashMap<String, chrono::Duration> = HashMap::new();
       let mut project_to_tags: HashMap<uuid::Uuid, BTreeSet<String>> = HashMap::new();
@@ -158,9 +181,10 @@ impl Viewer {
         if with_tags {
           for tag in project_to_tags.entry(project_id).or_default().iter() {
             tags_str += &format!(
-              "\n{indent}+ {tag_name}: {duration}",
+              "\n{indent}{pad}+ {tag_name}: {duration}",
               indent = ViewPaddings::LINE_INDENT,
-              tag_name = tag.bright_yellow().bold(),
+              pad = ViewPaddings::PAD,
+              tag_name = tag.color(ViewColors::STAT_TAG).bold(),
               duration = format_duration_without_paddings(*tag_times.get(tag).unwrap())
             );
           }
@@ -170,7 +194,9 @@ impl Viewer {
         println!(
           "{indent}{project_name}: {duration}{tags}",
           indent = ViewPaddings::LINE_INDENT,
-          project_name = self.get_project_name(project_id).green(),
+          project_name = self
+            .get_project_name(project_id)
+            .color(ViewColors::STAT_PROJECT),
           duration = format_duration_without_paddings(project_time).bold(),
           tags = tags_str
         );
@@ -241,7 +267,7 @@ impl Viewer {
     }
 
     for tasks in by_dates.iter() {
-      self.print_date(tasks);
+      self.print_header(tasks);
       for t in tasks.iter() {
         self.log_task(t, show_full);
       }
@@ -257,15 +283,19 @@ impl Viewer {
       .unwrap_or(chrono::Duration::zero());
   }
 
-  fn print_date(&self, tasks: &Vec<Task>) {
+  fn print_header(&self, tasks: &Vec<Task>) {
     let date = tasks.first().unwrap().start_time().date();
     let total_time = self.total_time(tasks);
     println!(
       "{date} — {duration}",
-      date = date.format("%A, %d %B %Y").to_string().bold().cyan(),
+      date = date
+        .format("%A, %d %B %Y")
+        .to_string()
+        .bold()
+        .color(ViewColors::HEADER_DATE),
       duration = format_duration_without_paddings(total_time)
         .bold()
-        .bright_yellow()
+        .color(ViewColors::HEADER_DURATION)
     );
   }
 
@@ -280,13 +310,13 @@ impl Viewer {
     let task_tags = self.busy.borrow().find_tags(task.tags());
     let tags: Vec<String> = task_tags
       .iter()
-      .map(|tag| tag.name().cyan().to_string())
+      .map(|tag| tag.name().color(ViewColors::TASK_TAG).to_string())
       .collect();
 
     let project_name = self.get_project_name(task.project_id());
-    let mut project_name_msg = project_name.as_str().red();
+    let mut project_name_msg = project_name.as_str().color(ViewColors::TASK_PROJECT_NAME);
     if task.is_paused() {
-      project_name_msg = (project_name + " [paused]").yellow();
+      project_name_msg = (project_name + " [paused]").color(ViewColors::TASK_PAUSED_PROJECT_NAME);
     }
 
     let time_frames = get_formatted_time_intervals(task);
@@ -294,7 +324,7 @@ impl Viewer {
       "{line_indent}{task_id}{pad}{time_frame}{pad}{duration:7}{pad}{project:10}{pad}{tags}",
       line_indent = ViewPaddings::LINE_INDENT,
       pad = ViewPaddings::PAD,
-      task_id = format_id(task.id()).bright_black(),
+      task_id = format_id_with_color(task.id()),
       time_frame = time_frames.first().unwrap(),
       duration = format_duration(task.duration()),
       project = project_name_msg,
@@ -334,6 +364,10 @@ pub fn format_id(id: uuid::Uuid) -> String {
   )
 }
 
+fn format_id_with_color(id: uuid::Uuid) -> ColoredString {
+  return format_id(id).color(ViewColors::ID);
+}
+
 fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
   let interval_count = task.times().len();
   let mut formatted_time_frames = Vec::new();
@@ -343,20 +377,20 @@ fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
     let is_first = i == 0;
     let is_last = i == interval_count - 1;
 
-    let mut start_color = Color::Green;
-    let mut stop_color = Color::Green;
+    let mut start_color = ViewColors::TIME;
+    let mut stop_color = ViewColors::TIME;
     if !is_first && !is_last {
-      start_color = Color::Magenta;
-      stop_color = Color::Magenta;
+      start_color = ViewColors::TIME_ADDITIONAL;
+      stop_color = ViewColors::TIME_ADDITIONAL;
     } else if is_last {
       if !is_first {
-        start_color = Color::Magenta;
+        start_color = ViewColors::TIME_ADDITIONAL;
       }
       if task.is_paused() {
-        stop_color = Color::Red;
+        stop_color = ViewColors::TIME_PAUSED;
       }
     } else if is_first {
-      stop_color = Color::Magenta;
+      stop_color = ViewColors::TIME_ADDITIONAL;
     }
 
     let with_duration = !is_first;
@@ -365,7 +399,7 @@ fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
       start_color,
       match time_frame.stop_time.is_some() {
         true => stop_color,
-        false => Color::Yellow,
+        false => ViewColors::TIME_ACTIVE,
       },
       with_duration,
     ));
@@ -384,7 +418,8 @@ fn format_time_frame(
     duration = format!(
       "{pad}{duration}",
       pad = ViewPaddings::PAD,
-      duration = format_duration(time_interval.duration()).bright_black()
+      duration =
+        format_duration(time_interval.duration()).color(ViewColors::TASK_ADDITIONAL_DURATION)
     );
   }
 
