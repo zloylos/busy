@@ -66,7 +66,6 @@ impl ViewPaddings {
     Self::SPACE,
     Self::DURATION
   );
-  // `work` etc
   pub const TILL_TIME_FRAME: Padding = sum_pads!(Self::LINE_INDENT, Self::ID, Self::PAD);
   pub const TILL_PROJECT: Padding = sum_pads!(
     Self::TILL_TIME_FRAME,
