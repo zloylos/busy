@@ -49,14 +49,23 @@ macro_rules! sum_pads {
 
 struct ViewPaddings {}
 impl ViewPaddings {
+  pub const SPACE: Padding = Padding(1);
   pub const PAD: Padding = Padding(2);
   pub const LINE_INDENT: Padding = Padding(4);
   // `dfcf..d73b`
   pub const ID: Padding = Padding(10);
-  // `12h 12m to 12h 12m`
-  pub const TIME_FRAME: Padding = Padding(5 + 1 + 2 + 1 + 5);
+  // `12h`
+  pub const DURATION_PART: Padding = Padding(3);
   // `12h 12m`
-  pub const DURATION: Padding = Padding(3 + 1 + 3);
+  pub const DURATION: Padding = sum_pads!(Self::DURATION_PART, Self::SPACE, Self::DURATION_PART);
+  // `12h 12m to 12h 12m`
+  pub const TIME_FRAME: Padding = sum_pads!(
+    Self::DURATION,
+    Self::SPACE,
+    Padding(2), // `to`
+    Self::SPACE,
+    Self::DURATION
+  );
   // `work` etc
   pub const TILL_TIME_FRAME: Padding = sum_pads!(Self::LINE_INDENT, Self::ID, Self::PAD);
   pub const TILL_PROJECT: Padding = sum_pads!(
