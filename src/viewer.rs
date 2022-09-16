@@ -353,6 +353,7 @@ fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
       stop_color = Color::Magenta;
     }
 
+    let with_duration = !is_first;
     formatted_time_frames.push(format_time_frame(
       &time_frame,
       start_color,
@@ -360,7 +361,7 @@ fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
         true => stop_color,
         false => Color::Yellow,
       },
-      !is_first,
+      with_duration,
     ));
   }
   return formatted_time_frames;
