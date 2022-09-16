@@ -1,5 +1,20 @@
 use chrono::{ParseResult, TimeZone};
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DateTimeInterval {
+  pub start_time: chrono::DateTime<chrono::Local>,
+  pub stop_time: Option<chrono::DateTime<chrono::Local>>,
+}
+
+impl DateTimeInterval {
+  pub fn duration(&self) -> chrono::Duration {
+    return self
+      .stop_time
+      .unwrap_or(chrono::Local::now())
+      .signed_duration_since(self.start_time);
+  }
+}
+
 pub fn parse_datetime(datetime: &str) -> ParseResult<chrono::DateTime<chrono::Local>> {
   let mut input = datetime.to_owned();
   if !input.contains(" ") {

@@ -1,10 +1,4 @@
-use crate::{tag::Tag, traits::Indexable};
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DateTimeInterval {
-  pub start_time: chrono::DateTime<chrono::Local>,
-  pub stop_time: Option<chrono::DateTime<chrono::Local>>,
-}
+use crate::{tag::Tag, time::DateTimeInterval, traits::Indexable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {

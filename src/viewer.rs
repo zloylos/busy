@@ -13,7 +13,8 @@ use crate::{
   duration_fmt::{format_duration, format_duration_without_paddings},
   project::Project,
   tag::Tag,
-  task::{self, DateTimeInterval, Task},
+  task::{self, Task},
+  time::DateTimeInterval,
   traits::Indexable,
 };
 
@@ -276,7 +277,6 @@ impl Viewer {
       .map(|tag| tag.name().cyan().to_string())
       .collect();
 
-    let tags_str = tags.join(", ");
     let project_name = self.get_project_name(task.project_id());
     let mut project_name_msg = project_name.as_str().red();
     if task.is_paused() {
@@ -292,7 +292,7 @@ impl Viewer {
       time_frame = time_frames.first().unwrap(),
       duration = format_duration(task.duration()),
       project = project_name_msg,
-      tags = tags_str.italic()
+      tags = tags.join(", ").italic()
     );
 
     let mut task_description = match show_full {
@@ -360,6 +360,7 @@ fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
         true => stop_color,
         false => Color::Yellow,
       },
+      !is_first,
     ));
   }
   return formatted_time_frames;
@@ -369,14 +370,24 @@ fn format_time_frame(
   time_interval: &DateTimeInterval,
   start_time_color: Color,
   stop_time_color: Color,
+  with_duration: bool,
 ) -> String {
+  let mut duration = String::new();
+  if with_duration {
+    duration = format!(
+      "{pad}{duration}",
+      pad = ViewPaddings::PAD,
+      duration = format_duration(time_interval.duration()).bright_black()
+    );
+  }
+
   format!(
-    "{start_time} to {stop_time}",
+    "{start_time} to {stop_time}{duration}",
     start_time = format_time(&time_interval.start_time, start_time_color),
     stop_time = format_time(
       &time_interval.stop_time.unwrap_or(chrono::Local::now()),
       stop_time_color
-    )
+    ),
   )
 }
 
