@@ -1,3 +1,12 @@
+pub fn format_id(id: uuid::Uuid) -> String {
+  let id_string = id.as_simple().to_string();
+  format!(
+    "{}..{}",
+    &id_string[0..4],
+    &id_string[id_string.len() - 4..id_string.len()]
+  )
+}
+
 pub fn format_duration(duration: chrono::Duration) -> String {
   let hours = duration.num_hours();
   let minutes = duration.num_minutes();

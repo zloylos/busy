@@ -10,7 +10,7 @@ use colored::{Color, ColoredString, Colorize};
 use crate::{
   busy::Busy,
   duration::Period,
-  duration_fmt::{format_duration, format_duration_without_paddings},
+  fmt::{format_duration, format_duration_without_paddings, format_id},
   project::Project,
   tag::Tag,
   task::{self, Task},
@@ -355,15 +355,6 @@ impl Viewer {
       );
     }
   }
-}
-
-pub fn format_id(id: uuid::Uuid) -> String {
-  let id_string = id.as_simple().to_string();
-  format!(
-    "{}..{}",
-    &id_string[0..4],
-    &id_string[id_string.len() - 4..id_string.len()]
-  )
 }
 
 fn format_id_with_color(id: uuid::Uuid) -> ColoredString {

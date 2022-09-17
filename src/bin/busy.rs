@@ -18,11 +18,12 @@ use busy::{
   Busy,
 };
 
+use busy::fmt::format_id;
 use busy::task::Task;
 use busy::task::TaskView;
 use busy::time::parse_datetime;
 use busy::traits::Indexable;
-use busy::viewer::{format_id, Viewer};
+use busy::viewer::Viewer;
 use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
 use log::debug;

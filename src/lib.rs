@@ -5,9 +5,9 @@ extern crate serde_json;
 extern crate uuid;
 
 mod busy;
-mod duration_fmt;
 
 pub mod duration;
+pub mod fmt;
 pub mod project;
 pub mod storage;
 pub mod sync;
