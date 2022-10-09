@@ -13,6 +13,26 @@ Busy implements sync through git repository. Check [sync](#sync) section for det
 cargo install --git https://github.com/zloylos/busy.git
 ```
 
+## Configuration
+
+Configuration by default is stored in `~/.config/busy/config.json` file. You can specify custom config path with env var `BUSY_CONFIG`.
+
+### Sync Configuration
+
+Busy supports sync through git repository. To enable sync you need to specify `syncer` section in config file like:
+
+```json
+{
+  "syncer": {
+    "Git": {
+      "key_file": null,
+      "remote": "git@github.com:my_name/private_db_repo.git",
+      "remote_branch": "main"
+    }
+  }
+}
+```
+
 ## Workflow
 
 ### Create a new task
@@ -78,22 +98,8 @@ You can edit tasks with `busy edit --task <task-id>` command. It will open your 
 
 ### Sync
 
-busy implements sync through git repository. To enable it, you need to create a new git repository and add it as a remote:
-
-```
-export BUSY_REMOTE=git@github.com:your-name/private-busy-sync.git
-```
-
-Make sure that you have ssh key for this repository.
-
-Then you can sync your tasks with `busy sync` command. If you need to foce sync, you can use `busy sync --force-push` or `busy sync --force-pull` command.
-
-You can also specify a branch name for sync:
-
-```
-export BUSY_REMOTE_BRANCH=main
-```
+You can sync tasks with `busy sync` command. If you need to foce sync, you can use `busy sync --force-push` or `busy sync --force-pull` command.
 
 ### Tips
 
-To not forget to stop a task, you can add `busy status` to your `~/.bashrc` or `~/.zshrc`
+To not forget to stop a task, you can add `busy status` to your `~/.bashrc` / `~/.zshrc`
