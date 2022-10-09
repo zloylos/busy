@@ -111,7 +111,7 @@ impl GitSyncer {
   }
 
   fn git_with_args(&mut self, args: &[&str]) -> std::io::Result<String> {
-    return git_with_args(&self.main_folder_path, &self.key_file, args);
+    return git_with_args(&self.main_folder_path, self.key_file.as_ref(), args);
   }
 }
 
@@ -151,15 +151,13 @@ impl Syncer for GitSyncer {
   }
 }
 
-fn git_with_args(cwd: &str, key_file: &Option<String>, args: &[&str]) -> std::io::Result<String> {
-  debug!(
-    "run git with args: {:?} cwd: {cwd} key_file: {key_file}",
-    args
-  );
+fn git_with_args(cwd: &str, key_file: Option<&String>, args: &[&str]) -> std::io::Result<String> {
+  debug!("run git with args: {args:?} cwd: {cwd} key_file: {key_file:?}");
 
-  let command = std::process::Command::new("git").current_dir(cwd);
+  let mut command = std::process::Command::new("git");
+  command.current_dir(cwd);
   if key_file.is_some() {
-    command.env("GIT_SSH_COMMAND", format("ssh -i {}", key_file.unwrap()));
+    command.env("GIT_SSH_COMMAND", format!("ssh -i {}", key_file.unwrap()));
   }
   let output = command.args(args).output()?;
 

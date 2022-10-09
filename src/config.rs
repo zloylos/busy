@@ -9,7 +9,7 @@ pub struct Config {
 impl Config {
   pub fn new() -> Self {
     const BUSY_DEFAULT_STORAGE_DIR: &str = ".busy";
-    const BUSY_DEFAULT_CONFIG_NAME: &str = ".busy.json";
+    const BUSY_DEFAULT_CONFIG_NAME: &str = ".config/busy/busy.json";
 
     let home_env = std::env::var("HOME").unwrap();
     let home = std::path::Path::new(home_env.as_str());
@@ -20,6 +20,7 @@ impl Config {
     };
 
     let get_config_file = || {
+      std::fs::create_dir_all(config_file_path.parent().unwrap()).unwrap();
       std::fs::File::options()
         .create(true)
         .write(true)
@@ -35,11 +36,7 @@ impl Config {
           .to_str()
           .unwrap()
           .to_owned(),
-        syncer: SyncerConfig::Git {
-          key_file: None,
-          remote: "git@github.com:zloylos/pomidorka_db.git".to_owned(),
-          remote_branch: Some("master".to_owned()),
-        },
+        syncer: SyncerConfig::Empty,
       };
 
       serde_json::to_writer_pretty(get_config_file(), &config).unwrap();
