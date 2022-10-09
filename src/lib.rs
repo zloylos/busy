@@ -5,6 +5,7 @@ extern crate serde_json;
 extern crate uuid;
 
 mod busy;
+mod config;
 
 pub mod duration;
 pub mod fmt;
@@ -17,4 +18,5 @@ pub mod time;
 pub mod traits;
 pub mod viewer;
 
-pub use busy::*;
+pub use self::busy::*;
+pub use config::*;

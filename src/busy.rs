@@ -1,51 +1,16 @@
 use log::debug;
 
 use crate::{
-  duration::Period, project::Project, storage::Storage, sync::GitSyncer, sync::Syncer, tag::Tag,
-  task::Task, traits::Indexable,
+  duration::Period,
+  project::Project,
+  storage::Storage,
+  sync::Syncer,
+  sync::{EmptySyncer, GitSyncer, SyncerConfig},
+  tag::Tag,
+  task::Task,
+  traits::Indexable,
+  Config,
 };
-
-const ENV_BUSY_DIR: &str = "BUSY_DIR";
-const ENV_BUSY_REMOTE: &str = "BUSY_REMOTE";
-const ENV_BUSY_REMOTE_BRANCH: &str = "BUSY_REMOTE_BRANCH";
-
-fn get_env_var(key: &str) -> Option<String> {
-  match std::env::var(key) {
-    Ok(val) => Some(val),
-    Err(_) => None,
-  }
-}
-
-pub struct Config {
-  storage_dir_path: String,
-  git_remote: Option<String>,
-  git_remote_branch: Option<String>,
-}
-
-impl Config {
-  pub fn init() -> Self {
-    let storage_dir = match get_env_var(ENV_BUSY_DIR) {
-      Some(dir) => std::path::Path::new(&dir).to_path_buf(),
-      None => std::path::Path::new(std::env::var("HOME").unwrap().as_str()).join(".busy"),
-    };
-
-    debug!("storage path is: {:?}", storage_dir);
-    std::fs::create_dir_all(&storage_dir).unwrap();
-
-    let storage_path = storage_dir
-      .canonicalize()
-      .unwrap()
-      .to_str()
-      .unwrap()
-      .to_owned();
-
-    Self {
-      storage_dir_path: storage_path,
-      git_remote: get_env_var(ENV_BUSY_REMOTE),
-      git_remote_branch: get_env_var(ENV_BUSY_REMOTE_BRANCH),
-    }
-  }
-}
 
 pub struct Busy {
   storage: Storage,
@@ -55,12 +20,22 @@ pub struct Busy {
 
 impl Busy {
   pub fn new() -> Self {
-    let config = Config::init();
-    let syncer = Box::new(GitSyncer::new(
-      &config.storage_dir_path,
-      config.git_remote.clone(),
-      config.git_remote_branch.clone(),
-    ));
+    let config = Config::new();
+
+    debug!("busy data folder: {}", config.storage_dir_path);
+    std::fs::create_dir_all(&config.storage_dir_path).unwrap();
+
+    let syncer: Box<dyn Syncer> = match config.syncer.clone() {
+      SyncerConfig::Empty => Box::new(EmptySyncer::new()),
+      SyncerConfig::Git {
+        remote,
+        remote_branch,
+      } => Box::new(GitSyncer::new(
+        &config.storage_dir_path,
+        Some(remote),
+        remote_branch,
+      )),
+    };
 
     Self {
       storage: Storage::new(&config.storage_dir_path),

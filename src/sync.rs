@@ -1,10 +1,42 @@
 use log::debug;
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum SyncerConfig {
+  Empty,
+  Git {
+    remote: String,
+    remote_branch: Option<String>,
+  },
+}
+
 pub trait Syncer {
   fn commit(&mut self, msg: &str) -> std::io::Result<String>;
   fn sync(&mut self) -> std::io::Result<String>;
   fn push_force(&mut self) -> std::io::Result<String>;
   fn pull_force(&mut self) -> std::io::Result<String>;
+}
+
+pub struct EmptySyncer {}
+
+impl EmptySyncer {
+  pub fn new() -> Self {
+    return Self {};
+  }
+}
+
+impl Syncer for EmptySyncer {
+  fn commit(&mut self, msg: &str) -> std::io::Result<String> {
+    return std::io::Result::Ok(format!("cmd: 'commit', msg: {msg}"));
+  }
+  fn sync(&mut self) -> std::io::Result<String> {
+    return std::io::Result::Ok(format!("cmd: 'sync'"));
+  }
+  fn push_force(&mut self) -> std::io::Result<String> {
+    return std::io::Result::Ok(format!("cmd: 'push_force'"));
+  }
+  fn pull_force(&mut self) -> std::io::Result<String> {
+    return std::io::Result::Ok(format!("cmd: 'pull_force'"));
+  }
 }
 
 pub struct GitSyncer {
