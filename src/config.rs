@@ -9,14 +9,14 @@ pub struct Config {
 impl Config {
   pub fn new() -> Self {
     const BUSY_DEFAULT_STORAGE_DIR: &str = ".busy";
-    const BUSY_DEFAULT_CONFIG_NAME: &str = ".config/busy/busy.json";
+    const BUSY_DEFAULT_CONFIG_PATH: &str = ".config/busy/config.json";
 
     let home_env = std::env::var("HOME").unwrap();
     let home = std::path::Path::new(home_env.as_str());
 
     let config_file_path = match std::env::var("BUSY_CONFIG") {
       Ok(file_path) => std::path::Path::new(&file_path).to_path_buf(),
-      Err(_) => home.join(BUSY_DEFAULT_CONFIG_NAME),
+      Err(_) => home.join(BUSY_DEFAULT_CONFIG_PATH),
     };
 
     let get_config_file = || {
