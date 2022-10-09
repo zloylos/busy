@@ -30,8 +30,10 @@ impl Busy {
       SyncerConfig::Git {
         remote,
         remote_branch,
+        key_file,
       } => Box::new(GitSyncer::new(
         &config.storage_dir_path,
+        key_file,
         Some(remote),
         remote_branch,
       )),

@@ -4,6 +4,7 @@ use log::debug;
 pub enum SyncerConfig {
   Empty,
   Git {
+    key_file: Option<String>,
     remote: String,
     remote_branch: Option<String>,
   },
@@ -41,14 +42,21 @@ impl Syncer for EmptySyncer {
 
 pub struct GitSyncer {
   main_folder_path: String,
+  key_file: Option<String>,
   remote: Option<String>,
   branch: String,
 }
 
 impl GitSyncer {
-  pub fn new(main_folder_path: &str, remote: Option<String>, branch: Option<String>) -> Self {
+  pub fn new(
+    main_folder_path: &str,
+    key_file: Option<String>,
+    remote: Option<String>,
+    branch: Option<String>,
+  ) -> Self {
     let mut obj = Self {
       main_folder_path: main_folder_path.to_owned(),
+      key_file,
       remote,
       branch: branch.unwrap_or("main".to_owned()),
     };
@@ -103,7 +111,7 @@ impl GitSyncer {
   }
 
   fn git_with_args(&mut self, args: &[&str]) -> std::io::Result<String> {
-    return git_with_args(&self.main_folder_path, args);
+    return git_with_args(&self.main_folder_path, &self.key_file, args);
   }
 }
 
@@ -143,12 +151,17 @@ impl Syncer for GitSyncer {
   }
 }
 
-fn git_with_args(cwd: &str, args: &[&str]) -> std::io::Result<String> {
-  debug!("run git with args: {:?} cwd: {}", args, cwd);
-  let output = std::process::Command::new("git")
-    .current_dir(cwd)
-    .args(args)
-    .output()?;
+fn git_with_args(cwd: &str, key_file: &Option<String>, args: &[&str]) -> std::io::Result<String> {
+  debug!(
+    "run git with args: {:?} cwd: {cwd} key_file: {key_file}",
+    args
+  );
+
+  let command = std::process::Command::new("git").current_dir(cwd);
+  if key_file.is_some() {
+    command.env("GIT_SSH_COMMAND", format("ssh -i {}", key_file.unwrap()));
+  }
+  let output = command.args(args).output()?;
 
   let stdout = String::from_utf8(output.stdout.clone()).unwrap_or_default();
   if !output.status.success() {

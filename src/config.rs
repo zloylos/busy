@@ -36,6 +36,7 @@ impl Config {
           .unwrap()
           .to_owned(),
         syncer: SyncerConfig::Git {
+          key_file: None,
           remote: "git@github.com:zloylos/pomidorka_db.git".to_owned(),
           remote_branch: Some("master".to_owned()),
         },
