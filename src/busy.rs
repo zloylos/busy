@@ -312,10 +312,12 @@ impl Busy {
 
   pub fn replace_tags(&mut self, tags: Vec<Tag>) {
     self.storage.replace_tags(tags);
+    self.commit("Edit all tags");
   }
 
   pub fn replace_tasks(&mut self, tasks: Vec<Task>) {
     self.storage.replace_tasks(tasks);
+    self.commit("Edit all tasks");
   }
 
   fn add_project(&mut self, project_name: &str) -> Project {
