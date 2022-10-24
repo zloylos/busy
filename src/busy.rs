@@ -3,7 +3,7 @@ use log::debug;
 use crate::{
   duration::Period,
   project::Project,
-  storage::Storage,
+  storage::{JsonStorage, Storage},
   sync::Syncer,
   sync::{EmptySyncer, GitSyncer, SyncerConfig},
   tag::Tag,
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct Busy {
-  storage: Storage,
+  storage: Box<dyn Storage>,
   syncer: Box<dyn Syncer>,
   config: Config,
 }
@@ -40,7 +40,7 @@ impl Busy {
     };
 
     Self {
-      storage: Storage::new(&config.storage_dir_path),
+      storage: Box::new(JsonStorage::new(&config.storage_dir_path)),
       syncer,
       config,
     }
@@ -48,7 +48,7 @@ impl Busy {
 
   pub fn sync(&mut self) -> std::io::Result<String> {
     self.syncer.sync()?;
-    self.storage = Storage::new(&self.config.storage_dir_path);
+    self.storage = Box::new(JsonStorage::new(&self.config.storage_dir_path));
 
     return Ok("sync success".to_string());
   }
@@ -302,12 +302,20 @@ impl Busy {
     self.storage.replace_tag(tag)
   }
 
-  pub fn tasks_db_filepath(&self) -> &str {
-    self.storage.tasks_filepath()
+  pub fn all_tasks(&self) -> Vec<Task> {
+    return self.storage.tasks();
   }
 
-  pub fn tags_db_filepath(&self) -> &str {
-    self.storage.tags_filepath()
+  pub fn all_tags(&self) -> Vec<Tag> {
+    return self.storage.tags();
+  }
+
+  pub fn replace_tags(&mut self, tags: Vec<Tag>) {
+    self.storage.replace_tags(tags);
+  }
+
+  pub fn replace_tasks(&mut self, tasks: Vec<Task>) {
+    self.storage.replace_tasks(tasks);
   }
 
   fn add_project(&mut self, project_name: &str) -> Project {

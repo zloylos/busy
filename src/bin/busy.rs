@@ -430,7 +430,7 @@ fn main() {
         edit(
           Rc::clone(&busy),
           &viewer,
-          EditDataType::All,
+          EditDataType::AllTasks,
           uuid::Uuid::new_v4(),
         );
         return;
@@ -489,7 +489,7 @@ enum EditDataType {
   Project,
   Tag,
   AllTags,
-  All,
+  AllTasks,
 }
 
 fn get_editor() -> String {
@@ -516,24 +516,6 @@ fn run_edit_and_get_result<T: serde::ser::Serialize + serde::de::DeserializeOwne
   debug!("edit result: {}", buf);
 
   return serde_json::from_str(&buf).expect("can't decode item back, please try again");
-}
-
-// TODO(zloylos): move replace functionality to busy to use sync.commit after edit
-fn run_edit_all(all_data_filepath: &str, tmp_file: &mut tempfile::NamedTempFile, editor: &str) {
-  let mut db_file = std::fs::File::options()
-    .write(true)
-    .read(true)
-    .open(all_data_filepath)
-    .unwrap();
-
-  let all_data: serde_json::Value = serde_json::from_reader(&db_file).unwrap();
-  let edited_data = run_edit_and_get_result(&all_data, tmp_file, editor);
-
-  db_file.rewind().unwrap();
-  db_file.set_len(0).unwrap();
-
-  serde_json::to_writer_pretty(&db_file, &edited_data).unwrap();
-  println!("Edit finished, data were saved");
 }
 
 fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, id: uuid::Uuid) {
@@ -585,19 +567,17 @@ fn edit(busy: Rc<RefCell<Busy>>, viewer: &Viewer, edit_data_type: EditDataType, 
     }
 
     EditDataType::AllTags => {
-      run_edit_all(
-        busy.borrow().tags_db_filepath(),
-        &mut tmp_file,
-        editor.as_str(),
-      );
+      let edited_data =
+        run_edit_and_get_result(&busy.borrow().all_tags(), &mut tmp_file, editor.as_str());
+      busy.borrow_mut().replace_tags(edited_data);
+      println!("Edit finished, tags were saved");
     }
 
-    EditDataType::All => {
-      run_edit_all(
-        busy.borrow().tasks_db_filepath(),
-        &mut tmp_file,
-        editor.as_str(),
-      );
+    EditDataType::AllTasks => {
+      let edited_data =
+        run_edit_and_get_result(&busy.borrow().all_tasks(), &mut tmp_file, editor.as_str());
+      busy.borrow_mut().replace_tasks(edited_data);
+      println!("Edit finished, tasks were saved");
     }
   };
 }
