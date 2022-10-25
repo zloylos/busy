@@ -5,7 +5,8 @@ use log::debug;
 use crate::{project::Project, tag::Tag, task::Task, traits::Indexable};
 
 pub trait Storage {
-  fn ids(&self) -> Vec<uuid::Uuid>;
+  fn shorten_id(&self, id: uuid::Uuid) -> String;
+  fn resolve_id(&self, id: &str) -> Option<uuid::Uuid>;
 
   fn tasks(&self) -> Vec<Task>;
   fn add_task(&mut self, task: &Task);
@@ -53,9 +54,7 @@ impl JsonStorage {
   pub fn tags_filepath(&self) -> &str {
     self.tags.storage_path()
   }
-}
 
-impl Storage for JsonStorage {
   fn ids(&self) -> Vec<uuid::Uuid> {
     // TODO: optimize
     let mut ids = Vec::new();
@@ -69,6 +68,30 @@ impl Storage for JsonStorage {
       ids.push(tag.id().clone());
     }
     return ids;
+  }
+}
+
+impl Storage for JsonStorage {
+  fn shorten_id(&self, id: uuid::Uuid) -> String {
+    let id_string = id.as_simple().to_string();
+    format!(
+      "{}..{}",
+      &id_string[0..4],
+      &id_string[id_string.len() - 4..id_string.len()]
+    )
+  }
+
+  fn resolve_id(&self, short_id: &str) -> Option<uuid::Uuid> {
+    let ids = self.ids();
+    let item = ids.iter().find(|&id| {
+      let formatted_id = self.shorten_id(*id);
+      return formatted_id == short_id;
+    });
+
+    if item.is_some() {
+      return Some(item.unwrap().clone());
+    }
+    return None;
   }
 
   fn add_task(&mut self, task: &Task) {

@@ -61,8 +61,12 @@ impl Busy {
     self.syncer.pull_force()
   }
 
-  pub fn ids(&self) -> Vec<uuid::Uuid> {
-    self.storage.ids()
+  pub fn shorten_id(&self, id: uuid::Uuid) -> String {
+    self.storage.shorten_id(id)
+  }
+
+  pub fn resolve_id(&self, short_id: &str) -> Option<uuid::Uuid> {
+    self.storage.resolve_id(short_id)
   }
 
   pub fn upsert_tags(&mut self, tags: Vec<String>) -> Vec<uuid::Uuid> {

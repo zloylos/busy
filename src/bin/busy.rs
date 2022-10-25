@@ -18,7 +18,6 @@ use busy::{
   Busy,
 };
 
-use busy::fmt::format_id;
 use busy::task::Task;
 use busy::task::TaskView;
 use busy::time::parse_datetime;
@@ -634,13 +633,7 @@ fn get_period(subcommand_matches: &ArgMatches) -> Period {
 }
 
 fn restore_id_by_short_id(busy: Rc<RefCell<Busy>>, short_id: &str) -> Result<uuid::Uuid, String> {
-  let ids = busy.borrow().ids();
-  let item = ids.iter().find(|&id| {
-    let formatted_id = format_id(*id);
-    return formatted_id == short_id;
-  });
-
-  match item {
+  match busy.borrow().resolve_id(short_id) {
     Some(id) => Ok(id.clone()),
     None => Err(format!("id by short name: {} not found", short_id)),
   }

@@ -10,7 +10,7 @@ use colored::{Color, ColoredString, Colorize};
 use crate::{
   busy::Busy,
   duration::Period,
-  fmt::{format_duration, format_duration_without_paddings, format_id},
+  fmt::{format_duration, format_duration_without_paddings},
   project::Project,
   tag::Tag,
   task::{self, Task},
@@ -124,7 +124,7 @@ impl Viewer {
     println!(
       "{pad}{id}{pad}{tag_name}",
       pad = ViewPaddings::PAD,
-      id = format_id_with_color(tag.id()),
+      id = self.format_id_with_color(tag.id()),
       tag_name = tag.name()
     );
   }
@@ -133,7 +133,7 @@ impl Viewer {
     println!(
       "{pad}{id}{pad}{project_name}",
       pad = ViewPaddings::PAD,
-      id = format_id_with_color(project.id()),
+      id = self.format_id_with_color(project.id()),
       project_name = project.name()
     );
   }
@@ -326,7 +326,7 @@ impl Viewer {
       "{line_indent}{task_id}{pad}{time_frame}{pad}{duration:7}{pad}{project:10}{pad}{tags}",
       line_indent = ViewPaddings::LINE_INDENT,
       pad = ViewPaddings::PAD,
-      task_id = format_id_with_color(task.id()),
+      task_id = self.format_id_with_color(task.id()),
       time_frame = time_frames.first().unwrap(),
       duration = format_duration(task.duration()),
       project = project_name_msg,
@@ -355,10 +355,10 @@ impl Viewer {
       );
     }
   }
-}
 
-fn format_id_with_color(id: uuid::Uuid) -> ColoredString {
-  return format_id(id).color(ViewColors::ID);
+  fn format_id_with_color(&self, id: uuid::Uuid) -> ColoredString {
+    self.busy.borrow().shorten_id(id).color(ViewColors::ID)
+  }
 }
 
 fn get_formatted_time_intervals(task: &Task) -> Vec<String> {
