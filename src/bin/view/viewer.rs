@@ -7,15 +7,15 @@ use std::{
 
 use colored::{Color, ColoredString, Colorize};
 
-use crate::{
+use super::fmt::{format_duration, format_duration_without_paddings};
+use {
+  busy::duration::Period,
+  busy::project::Project,
+  busy::tag::Tag,
+  busy::task::{self, Task},
+  busy::time::DateTimeInterval,
+  busy::traits::Indexable,
   busy::Busy,
-  duration::Period,
-  fmt::{format_duration, format_duration_without_paddings},
-  project::Project,
-  tag::Tag,
-  task::{self, Task},
-  time::DateTimeInterval,
-  traits::Indexable,
 };
 
 #[derive(Clone, Copy)]

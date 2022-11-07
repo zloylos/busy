@@ -6,6 +6,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate uuid;
 
+mod view;
+
 use std::{
   cell::RefCell,
   collections::HashSet,
@@ -22,10 +24,10 @@ use busy::task::Task;
 use busy::task::TaskView;
 use busy::time::parse_datetime;
 use busy::traits::Indexable;
-use busy::viewer::Viewer;
 use clap::{Arg, ArgMatches, Command};
 use colored::Colorize;
 use log::debug;
+use view::viewer::Viewer;
 
 fn build_cli() -> Command<'static> {
   let command = Command::new("busy")
