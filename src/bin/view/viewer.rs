@@ -245,7 +245,7 @@ impl Viewer {
         }
       }
 
-      let task_date = task.start_time().date();
+      let task_date = task.start_time().date_naive();
       if date.is_none() || date.unwrap() != task_date {
         by_dates.push(Vec::new());
         date = Some(task_date);
@@ -286,7 +286,7 @@ impl Viewer {
   }
 
   fn print_header(&self, tasks: &Vec<Task>) {
-    let date = tasks.first().unwrap().start_time().date();
+    let date = tasks.first().unwrap().start_time().date_naive();
     let total_time = self.total_time(tasks);
     println!(
       "{date} — {duration}",
